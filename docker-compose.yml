@@ -1,16 +1,18 @@
 version: '3.8'
 
 services:
-  maki-ia-web:
+  app:
     build: .
+    container_name: maki_ia_app
     ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
+      - "80:5000"
     volumes:
       - .:/app
+    command: python app.py
     restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
     networks:
       - maki-network
 

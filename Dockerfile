@@ -1,24 +1,20 @@
+# Utiliza uma imagem oficial do Python como base
 FROM python:3.11-slim
 
+# Define o diretório de trabalho dentro do container
 WORKDIR /app
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Copia os arquivos de dependências
+COPY requirements.txt ./
 
-# Copiar requirements e instalar dependências Python
-COPY requirements.txt .
+# Instala as dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código da aplicação
+# Copia o restante dos arquivos da aplicação
 COPY . .
 
-# Criar diretórios necessários
-RUN mkdir -p templates static/css static/js static/images
-
-# Expor porta
+# Expõe a porta 5000 (ajuste se sua aplicação usar outra porta)
 EXPOSE 5000
 
-# Comando para executar a aplicação
+# Comando para iniciar a aplicação
 CMD ["python", "app.py"]
