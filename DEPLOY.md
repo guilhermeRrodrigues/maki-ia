@@ -59,10 +59,20 @@ docker-compose up -d
 docker-compose ps
 ```
 
-5. **Acessar a aplicação:**
-- **Domínio:** `http://batatajg.shop` (recomendado)
-- **IP direto:** `http://45.70.136.66`
-- **Porta alternativa:** `http://45.70.136.66:3000` (se porta 80 não funcionar)
+5. **Configurar porta 80 (opcional):**
+```bash
+# Executar script de configuração (requer sudo)
+sudo bash configure-port80.sh
+
+# Ou configurar manualmente:
+echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+6. **Acessar a aplicação:**
+- **Domínio:** `http://batatajg.shop:8080` (atual)
+- **IP direto:** `http://45.70.136.66:8080`
+- **Com porta 80:** `http://batatajg.shop` (após configuração)
 
 ## Comandos Úteis
 

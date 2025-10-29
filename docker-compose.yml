@@ -5,7 +5,7 @@ services:
     build: .
     container_name: maki_ia_app
     ports:
-      - "80:5000"
+      - "8080:5000"
     volumes:
       - .:/app
     command: python app.py
@@ -15,8 +15,6 @@ services:
       - FLASK_DEBUG=0
     networks:
       - maki-network
-    cap_add:
-      - NET_BIND_SERVICE
 
 networks:
   maki-network:
