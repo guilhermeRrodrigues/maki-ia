@@ -32,14 +32,22 @@ git clone <seu-repositorio>
 cd maki-ia
 ```
 
-2. **Configurar variáveis de ambiente (opcional):**
+2. **Configurar domínio (batatajg.shop):**
+```bash
+# Verificar se o DNS está apontando para o servidor
+nslookup batatajg.shop
+
+# Deve retornar: 45.70.136.66
+```
+
+3. **Configurar variáveis de ambiente (opcional):**
 ```bash
 # Criar arquivo .env se necessário
 echo "FLASK_ENV=production" > .env
 echo "FLASK_DEBUG=0" >> .env
 ```
 
-3. **Construir e executar:**
+4. **Construir e executar:**
 ```bash
 # Construir a imagem
 docker-compose build
@@ -51,9 +59,10 @@ docker-compose up -d
 docker-compose ps
 ```
 
-4. **Acessar a aplicação:**
-- URL: `http://45.70.136.66:8080`
-- Ou: `http://seu-servidor:8080`
+5. **Acessar a aplicação:**
+- **Domínio:** `http://batatajg.shop` (recomendado)
+- **IP direto:** `http://45.70.136.66`
+- **Porta alternativa:** `http://45.70.136.66:3000` (se porta 80 não funcionar)
 
 ## Comandos Úteis
 
@@ -75,10 +84,12 @@ docker-compose up -d
 
 ## Configurações de Produção
 
-- **Porta:** A aplicação roda na porta 8080 (acessível via http://seu-servidor:8080)
+- **Domínio:** `batatajg.shop` (porta 80 padrão)
+- **IP:** `45.70.136.66` (porta 80)
 - **Restart:** Automático em caso de falha
 - **Debug:** Desabilitado para melhor performance
 - **Volumes:** Código montado para facilitar atualizações
+- **Permissões:** `NET_BIND_SERVICE` para usar porta 80
 
 ## Monitoramento
 
@@ -106,13 +117,19 @@ tar -xzf maki-ia-backup-YYYYMMDD.tar.gz
 ## Troubleshooting
 
 1. **Porta 80 ocupada:**
-   - Altere a porta no docker-compose.yml
+   - Altere a porta no docker-compose.yml para 3000
    - Ou pare o serviço que está usando a porta 80
 
-2. **Erro de permissão:**
+2. **Erro de permissão na porta 80:**
    - Execute: `sudo chown -R $USER:$USER .`
+   - O `cap_add: NET_BIND_SERVICE` já está configurado
 
-3. **Container não inicia:**
+3. **Domínio não funciona:**
+   - Verifique DNS: `nslookup batatajg.shop`
+   - Deve apontar para: `45.70.136.66`
+   - Teste com IP direto: `http://45.70.136.66`
+
+4. **Container não inicia:**
    - Verifique logs: `docker-compose logs app`
    - Verifique se a API key do Gemini está correta
 
