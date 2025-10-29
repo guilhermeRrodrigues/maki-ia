@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAKI IA - Tecnologia que entende você</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-brand">
+                <div class="logo">
+                    <div class="logo-circle"></div>
+                    <span class="logo-text">MAKI</span>
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="#sobre" class="nav-link">Sobre</a>
+                <a href="#recursos" class="nav-link">Recursos</a>
+                <a href="#demonstracao" class="nav-link">Demonstração</a>
+                <a href="#contato" class="nav-link">Contato</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background">
+            <div class="circuit-pattern"></div>
+            <div class="floating-elements">
+                <div class="floating-circle circle-1"></div>
+                <div class="floating-circle circle-2"></div>
+                <div class="floating-circle circle-3"></div>
+            </div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="hero-title">
+                    <span class="title-main">MAKI IA</span>
+                    <span class="title-sub">Tecnologia que entende você</span>
+                </h1>
+                <p class="hero-description">
+                    Uma inteligência artificial desenvolvida no SESI para trazer tecnologia de forma 
+                    acessível, prática e intuitiva. Combinando design moderno, simpatia e eficiência.
+                </p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary btn-large" onclick="showDemo()">
+                        <span>Experimentar MAKI IA</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-secondary" onclick="scrollToSection('sobre')">
+                        Conhecer MAKI
+                    </button>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="ai-brain">
+                    <div class="brain-core"></div>
+                    <div class="neural-network">
+                        <div class="neural-node node-1"></div>
+                        <div class="neural-node node-2"></div>
+                        <div class="neural-node node-3"></div>
+                        <div class="neural-node node-4"></div>
+                        <div class="neural-node node-5"></div>
+                        <div class="neural-node node-6"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sobre Section -->
+    <section id="sobre" class="section sobre">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Sobre a MAKI IA</h2>
+                <p class="section-subtitle">Desenvolvida por João Guilherme no SESI</p>
+            </div>
+            <div class="sobre-content">
+                <div class="sobre-text">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Propósito</h3>
+                        <p>Tornar o uso da inteligência artificial simples, humano e útil no dia a dia, especialmente em ambientes educacionais e criativos.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🌈</div>
+                        <h3>Personalidade</h3>
+                        <p>Amigável, inteligente, curiosa, prestativa e educadora. MAKI explica conceitos de IA de maneira compreensível para estudantes e iniciantes.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3>Design</h3>
+                        <p>Futurista minimalista combinando suavidade e tecnologia, com cores preto grafite, azul ciano e branco metálico.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recursos Section -->
+    <section id="recursos" class="section recursos">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Recursos da MAKI IA</h2>
+                <p class="section-subtitle">Tecnologia avançada, interface intuitiva</p>
+            </div>
+            <div class="recursos-grid">
+                <div class="recurso-card">
+                    <div class="recurso-icon">🧠</div>
+                    <h3>Inteligência Adaptativa</h3>
+                    <p>Aprende com cada interação para oferecer respostas cada vez mais personalizadas e precisas.</p>
+                </div>
+                <div class="recurso-card">
+                    <div class="recurso-icon">📚</div>
+                    <h3>Foco Educacional</h3>
+                    <p>Especialmente desenvolvida para ambientes de aprendizado, facilitando o ensino e compreensão.</p>
+                </div>
+                <div class="recurso-card">
+                    <div class="recurso-icon">🎨</div>
+                    <h3>Criatividade</h3>
+                    <p>Estimula a criatividade e inovação através de ferramentas inteligentes e sugestões criativas.</p>
+                </div>
+                <div class="recurso-card">
+                    <div class="recurso-icon">⚡</div>
+                    <h3>Eficiência</h3>
+                    <p>Respostas rápidas e precisas para otimizar seu tempo e produtividade.</p>
+                </div>
+                <div class="recurso-card">
+                    <div class="recurso-icon">🤝</div>
+                    <h3>Acessibilidade</h3>
+                    <p>Interface intuitiva e linguagem clara, tornando a tecnologia acessível para todos.</p>
+                </div>
+                <div class="recurso-card">
+                    <div class="recurso-icon">🔮</div>
+                    <h3>Futuro</h3>
+                    <p>Construindo o futuro da educação e tecnologia com soluções inovadoras.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demonstração Section -->
+    <section id="demonstracao" class="section demonstracao">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Experimente a MAKI IA</h2>
+                <p class="section-subtitle">Uma inteligência artificial real desenvolvida no SESI</p>
+            </div>
+            <div class="demo-showcase">
+                <div class="demo-content">
+                    <div class="demo-text">
+                        <h3>Chat Interativo com IA Real</h3>
+                        <p>Converse diretamente com a MAKI IA usando a API do Google Gemini. Faça perguntas sobre tecnologia, aprendizado, criatividade ou qualquer tópico que você queira explorar.</p>
+                        <div class="demo-features">
+                            <div class="feature-item">
+                                <div class="feature-icon">🤖</div>
+                                <span>IA Real do Google Gemini</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon">💬</div>
+                                <span>Chat em tempo real</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon">🎓</div>
+                                <span>Foco educacional</span>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon">⚡</div>
+                                <span>Respostas instantâneas</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-large" onclick="showDemo()">
+                            <span>Experimentar Agora</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="demo-preview">
+                        <div class="chat-preview">
+                            <div class="preview-header">
+                                <div class="preview-avatar">🧠</div>
+                                <div class="preview-info">
+                                    <h4>MAKI IA</h4>
+                                    <span class="preview-status">Online</span>
+                                </div>
+                            </div>
+                            <div class="preview-messages">
+                                <div class="preview-message maki-preview">
+                                    <p>Oi! Como posso ajudar você hoje?</p>
+                                </div>
+                                <div class="preview-message user-preview">
+                                    <p>O que é inteligência artificial?</p>
+                                </div>
+                                <div class="preview-message maki-preview">
+                                    <p>IA é como ensinar computadores a pensar e aprender...</p>
+                                </div>
+                            </div>
+                            <div class="preview-input">
+                                <input type="text" placeholder="Digite sua pergunta..." disabled>
+                                <button disabled>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Status Section -->
+    <section class="section status">
+        <div class="container">
+            <div class="status-card">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span class="status-text">MAKI IA Online</span>
+                </div>
+                <div class="status-info">
+                    <p>Versão 1.0.0 - Desenvolvida no SESI</p>
+                    <p>Sempre pronta para ajudar e aprender!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contato" class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <div class="logo-circle"></div>
+                        <span class="logo-text">MAKI IA</span>
+                    </div>
+                    <p class="footer-slogan">Tecnologia que entende você</p>
+                </div>
+                <div class="footer-info">
+                    <p><strong>Desenvolvido por:</strong> João Guilherme</p>
+                    <p><strong>Instituição:</strong> SESI</p>
+                    <p><strong>Objetivo:</strong> Inovação educacional e tecnológica</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 MAKI IA. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

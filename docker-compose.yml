@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  maki-ia-web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    networks:
+      - maki-network
+
+networks:
+  maki-network:
+    driver: bridge
