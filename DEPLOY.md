@@ -51,6 +51,10 @@ docker-compose up -d
 docker-compose ps
 ```
 
+4. **Acessar a aplicação:**
+- URL: `http://45.70.136.66:8080`
+- Ou: `http://seu-servidor:8080`
+
 ## Comandos Úteis
 
 ```bash
@@ -71,7 +75,7 @@ docker-compose up -d
 
 ## Configurações de Produção
 
-- **Porta:** A aplicação roda na porta 80 (acessível via http://seu-servidor)
+- **Porta:** A aplicação roda na porta 8080 (acessível via http://seu-servidor:8080)
 - **Restart:** Automático em caso de falha
 - **Debug:** Desabilitado para melhor performance
 - **Volumes:** Código montado para facilitar atualizações

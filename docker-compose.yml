@@ -5,7 +5,7 @@ services:
     build: .
     container_name: maki_ia_app
     ports:
-      - "80:5000"
+      - "8080:5000"
     volumes:
       - .:/app
     command: python app.py
