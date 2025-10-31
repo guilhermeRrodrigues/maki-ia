@@ -19,17 +19,22 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Verificar se Docker Compose está instalado
-if ! command -v docker-compose &> /dev/null; then
+# Verificar se Docker Compose está instalado (tentar docker compose primeiro, depois docker-compose)
+if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
     echo -e "${RED}❌ Docker Compose não está instalado. Por favor, instale o Docker Compose primeiro.${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}✅ Docker e Docker Compose estão instalados${NC}"
+echo -e "${YELLOW}ℹ️  Usando comando: ${DOCKER_COMPOSE_CMD}${NC}"
 
 # Parar containers existentes (se houver)
 echo -e "${YELLOW}📦 Parando containers existentes...${NC}"
-docker-compose down 2>/dev/null || true
+$DOCKER_COMPOSE_CMD down 2>/dev/null || true
 
 # Remover imagens antigas (opcional - descomente se quiser)
 # echo -e "${YELLOW}🗑️  Removendo imagens antigas...${NC}"
@@ -37,11 +42,11 @@ docker-compose down 2>/dev/null || true
 
 # Construir a nova imagem
 echo -e "${YELLOW}🔨 Construindo a imagem Docker...${NC}"
-docker-compose build --no-cache
+$DOCKER_COMPOSE_CMD build --no-cache
 
-# Iniciar os containers
-echo -e "${YELLOW}🚀 Iniciando os containers...${NC}"
-docker-compose up -d
+# Iniciar os containers em modo detached (background)
+echo -e "${YELLOW}🚀 Iniciando os containers em background...${NC}"
+$DOCKER_COMPOSE_CMD up -d
 
 # Aguardar alguns segundos para o container iniciar
 echo -e "${YELLOW}⏳ Aguardando o container iniciar...${NC}"
@@ -53,7 +58,7 @@ if docker ps | grep -q maki_ia_app; then
     
     # Mostrar logs iniciais
     echo -e "${YELLOW}📋 Logs iniciais:${NC}"
-    docker-compose logs --tail=20
+    $DOCKER_COMPOSE_CMD logs --tail=20
     
     # Testar a aplicação
     echo -e "${YELLOW}🧪 Testando aplicação...${NC}"
@@ -62,7 +67,30 @@ if docker ps | grep -q maki_ia_app; then
     if curl -f http://localhost/api/status &> /dev/null; then
         echo -e "${GREEN}✅ Aplicação está respondendo corretamente!${NC}"
     else
-        echo -e "${YELLOW}⚠️  A aplicação pode estar iniciando ainda. Verifique os logs com: docker-compose logs${NC}"
+        echo -e "${YELLOW}⚠️  A aplicação pode estar iniciando ainda. Verifique os logs com: ${DOCKER_COMPOSE_CMD} logs${NC}"
+    fi
+    
+    echo ""
+    echo -e "${YELLOW}🔧 Configurando serviço systemd para iniciar automaticamente...${NC}"
+    
+    # Criar diretório de serviço se não existir
+    sudo mkdir -p /etc/systemd/system
+    
+    # Copiar arquivo de serviço
+    if [ -f "maki-ia.service" ]; then
+        sudo cp maki-ia.service /etc/systemd/system/maki-ia.service
+        sudo sed -i "s|WorkingDirectory=/opt/maki-ia|WorkingDirectory=$(pwd)|g" /etc/systemd/system/maki-ia.service
+        
+        # Recarregar systemd
+        sudo systemctl daemon-reload
+        
+        # Habilitar serviço para iniciar no boot
+        sudo systemctl enable maki-ia.service
+        
+        echo -e "${GREEN}✅ Serviço systemd configurado e habilitado!${NC}"
+        echo -e "${YELLOW}ℹ️  O serviço iniciará automaticamente no boot do sistema${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Arquivo maki-ia.service não encontrado. Continuando sem serviço systemd...${NC}"
     fi
     
     echo ""
@@ -70,14 +98,18 @@ if docker ps | grep -q maki_ia_app; then
     echo -e "${GREEN}📱 Acesse a aplicação em: http://45.70.136.66${NC}"
     echo ""
     echo "Comandos úteis:"
-    echo "  - Ver logs: docker-compose logs -f"
-    echo "  - Parar: docker-compose down"
-    echo "  - Reiniciar: docker-compose restart"
-    echo "  - Status: docker-compose ps"
+    echo "  - Ver logs: ${DOCKER_COMPOSE_CMD} logs -f"
+    echo "  - Parar: ${DOCKER_COMPOSE_CMD} down"
+    echo "  - Reiniciar: ${DOCKER_COMPOSE_CMD} restart"
+    echo "  - Status: ${DOCKER_COMPOSE_CMD} ps"
+    echo "  - Status do serviço: sudo systemctl status maki-ia"
+    echo "  - Reiniciar serviço: sudo systemctl restart maki-ia"
+    echo ""
+    echo -e "${GREEN}✅ O container continuará rodando mesmo após fechar o Putty/SSH!${NC}"
     
 else
     echo -e "${RED}❌ Erro: Container não está rodando. Verifique os logs:${NC}"
-    docker-compose logs
+    $DOCKER_COMPOSE_CMD logs
     exit 1
 fi
 

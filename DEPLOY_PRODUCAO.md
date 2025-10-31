@@ -97,6 +97,12 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
+O script irá:
+- Construir a imagem Docker
+- Iniciar o container em modo background (detached)
+- **Configurar automaticamente um serviço systemd** para garantir que continue rodando mesmo após fechar o SSH/Putty
+- Habilitar o serviço para iniciar automaticamente no boot do sistema
+
 ### OU executar manualmente:
 
 ```bash
@@ -190,13 +196,56 @@ cd /opt/maki-ia
 # Se usar Git:
 git pull origin main
 
-# Rebuild e restart
+# Rebuild e restart (o serviço systemd vai reiniciar automaticamente)
 docker compose down
 docker compose build --no-cache
 docker compose up -d
 
+# OU usar o serviço systemd:
+sudo systemctl restart maki-ia
+
 # Ver logs
 docker compose logs -f
+```
+
+## 🔧 Gerenciar o Serviço Systemd
+
+O serviço systemd garante que a aplicação continue rodando mesmo após:
+- Fechar o Putty/SSH
+- Reiniciar o servidor
+- Logout do usuário
+
+### Comandos do Serviço:
+
+```bash
+# Ver status
+sudo systemctl status maki-ia
+
+# Ver logs do serviço
+sudo journalctl -u maki-ia -f
+
+# Reiniciar serviço
+sudo systemctl restart maki-ia
+
+# Parar serviço
+sudo systemctl stop maki-ia
+
+# Iniciar serviço
+sudo systemctl start maki-ia
+
+# Habilitar para iniciar no boot
+sudo systemctl enable maki-ia
+
+# Desabilitar do boot
+sudo systemctl disable maki-ia
+```
+
+### Reinstalar o Serviço Manualmente:
+
+Se precisar reinstalar o serviço:
+
+```bash
+sudo ./INSTALAR_SERVICO.sh
 ```
 
 ## 🔒 Configuração de Segurança

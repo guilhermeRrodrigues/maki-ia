@@ -1,0 +1,22 @@
+[Unit]
+Description=MAKI IA Docker Compose Application Service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/maki-ia
+# Tenta docker compose primeiro (versão nova), depois docker-compose (versão antiga)
+ExecStart=/bin/bash -c 'if command -v docker &> /dev/null && docker compose version &> /dev/null; then docker compose up -d; else docker-compose up -d; fi'
+ExecStop=/bin/bash -c 'if command -v docker &> /dev/null && docker compose version &> /dev/null; then docker compose down; else docker-compose down; fi'
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
