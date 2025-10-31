@@ -107,7 +107,7 @@ function showDemo() {
                 </div>
                 <div class="demo-input-container">
                     <div class="input-wrapper">
-                        <input type="text" placeholder="Digite sua pergunta para a MAKI IA..." id="demoInput" autocomplete="off">
+                        <input type="text" placeholder="Digite sua pergunta para a MAKI IA..." id="demoInput" autocomplete="off" maxlength="500">
                         <button class="send-btn" onclick="sendDemoMessage()" id="sendBtn">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                                 <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -250,6 +250,28 @@ function showDemo() {
     document.head.appendChild(styleSheet);
 
     document.body.appendChild(modal);
+    
+    // Adicionar event listeners para o input
+    setTimeout(() => {
+        const input = document.getElementById('demoInput');
+        if (input) {
+            // Contador de caracteres
+            input.addEventListener('input', function() {
+                updateCharCounter(this.value.length);
+            });
+            
+            // Enviar com Enter
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendDemoMessage();
+                }
+            });
+            
+            // Focar no input ao abrir
+            input.focus();
+        }
+    }, 100);
 }
 
 // Função para fechar demonstração
@@ -264,56 +286,96 @@ function closeDemo() {
 async function sendDemoMessage() {
     const input = document.getElementById('demoInput');
     const message = input.value.trim();
+    const sendBtn = document.getElementById('sendBtn');
     
-    if (message) {
-        // Adicionar mensagem do usuário
-        addMessageToChat(message, 'user');
-        input.value = '';
+    // Validar mensagem vazia
+    if (!message) {
+        return;
+    }
+    
+    // Validar limite de 500 caracteres
+    if (message.length > 500) {
+        addMessageToChat(`❌ Sua mensagem tem ${message.length} caracteres. Por favor, limite a 500 caracteres.`, 'maki', true);
+        return;
+    }
+    
+    // Desabilitar botão e input durante o envio
+    input.disabled = true;
+    sendBtn.disabled = true;
+    sendBtn.style.opacity = '0.5';
+    
+    // Adicionar mensagem do usuário
+    addMessageToChat(message, 'user');
+    input.value = '';
+    updateCharCounter(0);
+    
+    // Mostrar indicador de digitação
+    showTypingIndicator();
+    
+    try {
+        // Enviar mensagem para a API da MAKI IA
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message
+            })
+        });
         
-        // Mostrar indicador de digitação
-        showTypingIndicator();
-        
-        try {
-            // Enviar mensagem para a API da MAKI IA
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: message
-                })
-            });
-            
-            const data = await response.json();
-            
-            // Remover indicador de digitação
-            hideTypingIndicator();
-            
-            if (data.status === 'success') {
-                // Adicionar resposta da MAKI IA
-                addMessageToChat(data.response, 'maki');
-            } else {
-                // Mostrar erro
-                addMessageToChat('Desculpe, ocorreu um erro. Tente novamente.', 'maki');
-            }
-        } catch (error) {
-            // Remover indicador de digitação
-            hideTypingIndicator();
-            console.error('Erro ao enviar mensagem:', error);
-            addMessageToChat('Desculpe, não consegui processar sua mensagem. Verifique sua conexão e tente novamente.', 'maki');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        // Verificar se a resposta foi bem-sucedida
+        if (data.status === 'success' && data.response && data.response.trim()) {
+            // Remover indicador de digitação antes de mostrar a resposta
+            hideTypingIndicator();
+            // Adicionar resposta da MAKI IA com efeito de digitação
+            typeMessage(data.response.trim(), 'maki');
+        } else {
+            // Remover indicador de digitação
+            hideTypingIndicator();
+            // Mostrar erro específico
+            const errorMsg = data.error || 'Desculpe, ocorreu um erro. Tente novamente.';
+            addMessageToChat(`❌ ${errorMsg}`, 'maki', true);
+        }
+    } catch (error) {
+        // Remover indicador de digitação
+        hideTypingIndicator();
+        console.error('Erro ao enviar mensagem:', error);
+        addMessageToChat('❌ Desculpe, não consegui processar sua mensagem. Verifique sua conexão e tente novamente.', 'maki', true);
+    } finally {
+        // Reabilitar botão e input
+        input.disabled = false;
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = '1';
+        input.focus();
     }
 }
 
 // Função para mostrar indicador de digitação
 function showTypingIndicator() {
-    const chatContainer = document.querySelector('.demo-chat');
+    const chatContainer = document.getElementById('demoChat');
+    if (!chatContainer) return;
+    
+    // Remover qualquer indicador existente primeiro
+    hideTypingIndicator();
+    
     const typingDiv = document.createElement('div');
     typingDiv.className = 'chat-message maki-message typing-indicator';
     typingDiv.innerHTML = `
-        <div class="message-avatar">🧠</div>
+        <div class="message-avatar">
+            <div class="avatar-circle">🧠</div>
+        </div>
         <div class="message-content">
+            <div class="message-header">
+                <span class="sender-name">MAKI IA</span>
+                <span class="message-time">digitando...</span>
+            </div>
             <div class="typing-dots">
                 <span></span>
                 <span></span>
@@ -323,14 +385,23 @@ function showTypingIndicator() {
     `;
     
     chatContainer.appendChild(typingDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    smoothScrollToBottom(chatContainer);
 }
 
 // Função para remover indicador de digitação
 function hideTypingIndicator() {
-    const typingIndicator = document.querySelector('.typing-indicator');
-    if (typingIndicator) {
-        typingIndicator.remove();
+    const chatContainer = document.getElementById('demoChat');
+    if (chatContainer) {
+        const typingIndicator = chatContainer.querySelector('.typing-indicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
+    } else {
+        // Fallback: procurar em todo o documento
+        const typingIndicator = document.querySelector('.typing-indicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
     }
 }
 
@@ -340,11 +411,82 @@ function sendSuggestion(message) {
     sendDemoMessage();
 }
 
-// Função para adicionar mensagem ao chat
-function addMessageToChat(message, sender) {
+// Função para adicionar mensagem ao chat com animação suave
+function addMessageToChat(message, sender, isError = false) {
     const chatContainer = document.getElementById('demoChat');
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${sender}-message`;
+    if (isError) {
+        messageDiv.classList.add('error-message');
+    }
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+    // Escapar HTML para segurança
+    const escapedMessage = escapeHtml(message);
+    
+    if (sender === 'maki') {
+        messageDiv.innerHTML = `
+            <div class="message-avatar">
+                <div class="avatar-circle">🧠</div>
+            </div>
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="sender-name">MAKI IA</span>
+                    <span class="message-time">${timeString}</span>
+                </div>
+                <p class="message-text">${escapedMessage}</p>
+            </div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="sender-name">Você</span>
+                    <span class="message-time">${timeString}</span>
+                </div>
+                <p class="message-text">${escapedMessage}</p>
+            </div>
+        `;
+    }
+    
+    chatContainer.appendChild(messageDiv);
+    // Scroll suave para a última mensagem
+    smoothScrollToBottom(chatContainer);
+    
+    // Animação de entrada
+    setTimeout(() => {
+        messageDiv.style.opacity = '1';
+        messageDiv.style.transform = 'translateY(0)';
+    }, 10);
+}
+
+// Função para escapar HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Função para digitar mensagem com efeito de typewriter
+function typeMessage(message, sender) {
+    if (!message || typeof message !== 'string') {
+        console.error('Mensagem inválida:', message);
+        addMessageToChat('Desculpe, não recebi uma resposta válida.', 'maki', true);
+        return;
+    }
+    
+    const chatContainer = document.getElementById('demoChat');
+    if (!chatContainer) {
+        console.error('Container do chat não encontrado');
+        return;
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}-message typing-message`;
+    messageDiv.style.opacity = '0';
+    messageDiv.style.transform = 'translateY(10px)';
     
     const now = new Date();
     const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -359,23 +501,70 @@ function addMessageToChat(message, sender) {
                     <span class="sender-name">MAKI IA</span>
                     <span class="message-time">${timeString}</span>
                 </div>
-                <p>${message}</p>
-            </div>
-        `;
-    } else {
-        messageDiv.innerHTML = `
-            <div class="message-content">
-                <div class="message-header">
-                    <span class="sender-name">Você</span>
-                    <span class="message-time">${timeString}</span>
-                </div>
-                <p>${message}</p>
+                <p class="message-text"><span class="typing-cursor">|</span></p>
             </div>
         `;
     }
     
     chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+    // Animação de entrada
+    setTimeout(() => {
+        messageDiv.style.opacity = '1';
+        messageDiv.style.transform = 'translateY(0)';
+    }, 10);
+    
+    smoothScrollToBottom(chatContainer);
+    
+    // Digitar caractere por caractere
+    const textElement = messageDiv.querySelector('.message-text');
+    if (!textElement) {
+        console.error('Elemento de texto não encontrado');
+        return;
+    }
+    
+    let index = 0;
+    const typingSpeed = 20; // milissegundos por caractere
+    
+    function typeChar() {
+        if (index < message.length && textElement) {
+            textElement.innerHTML = escapeHtml(message.substring(0, index + 1)) + '<span class="typing-cursor">|</span>';
+            index++;
+            setTimeout(typeChar, typingSpeed);
+            // Scroll contínuo durante a digitação
+            smoothScrollToBottom(chatContainer);
+        } else {
+            // Remover cursor ao terminar
+            if (textElement) {
+                textElement.innerHTML = escapeHtml(message);
+            }
+        }
+    }
+    
+    setTimeout(typeChar, 100);
+}
+
+// Função para scroll suave
+function smoothScrollToBottom(element) {
+    element.scrollTo({
+        top: element.scrollHeight,
+        behavior: 'smooth'
+    });
+}
+
+// Função para atualizar contador de caracteres
+function updateCharCounter(length) {
+    let counter = document.getElementById('charCounter');
+    if (!counter) {
+        const inputWrapper = document.querySelector('.input-wrapper');
+        counter = document.createElement('div');
+        counter.id = 'charCounter';
+        counter.className = 'char-counter';
+        inputWrapper.appendChild(counter);
+    }
+    
+    counter.textContent = `${length}/500`;
+    counter.classList.toggle('char-limit', length >= 500);
 }
 
 // Função para verificar status da API
