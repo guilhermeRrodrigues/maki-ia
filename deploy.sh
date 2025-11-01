@@ -67,7 +67,14 @@ if docker ps | grep -q maki_ia_app; then
     if curl -f http://localhost/api/status &> /dev/null; then
         echo -e "${GREEN}✅ Aplicação está respondendo corretamente!${NC}"
         
-        # Testar rota /agent
+        # Testar página home (que contém o modo Agent integrado)
+        if curl -f http://localhost/home &> /dev/null; then
+            echo -e "${GREEN}✅ Página home (com Modo Agent integrado) está acessível!${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Página home pode estar com problema. Verifique os logs.${NC}"
+        fi
+        
+        # Testar rota /agent (página dedicada)
         if curl -f http://localhost/agent &> /dev/null; then
             echo -e "${GREEN}✅ Modo Agent (/agent) está acessível!${NC}"
         else

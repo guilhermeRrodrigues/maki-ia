@@ -628,3 +628,292 @@ function showMAKIInfo() {
 
 // Inicializar informações da MAKI
 showMAKIInfo();
+
+// ==========================================
+// MAKI IA AGENT - Funcionalidade integrada na home
+// ==========================================
+
+let agentIsTyping = false;
+
+// Inicializar Agent quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAgent();
+});
+
+function initializeAgent() {
+    const messageInput = document.getElementById('agentMessageInput');
+    const sendButton = document.getElementById('agentSendButton');
+    const charCounter = document.getElementById('agentCharCounter');
+    const welcomeScreen = document.getElementById('agentWelcomeScreen');
+    const chatContainer = document.getElementById('agentChatContainer');
+    
+    if (!messageInput || !sendButton) return;
+    
+    // Event listeners
+    sendButton.addEventListener('click', sendAgentMessage);
+    
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendAgentMessage();
+        }
+    });
+    
+    messageInput.addEventListener('input', () => {
+        updateAgentCharCounter();
+        autoResizeAgentTextarea();
+        updateAgentSendButton();
+    });
+    
+    // Sugestões
+    document.querySelectorAll('.agent-suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const suggestion = e.currentTarget.getAttribute('data-suggestion');
+            messageInput.value = suggestion;
+            updateAgentCharCounter();
+            autoResizeAgentTextarea();
+            updateAgentSendButton();
+            messageInput.focus();
+        });
+    });
+}
+
+function autoResizeAgentTextarea() {
+    const input = document.getElementById('agentMessageInput');
+    if (input) {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+    }
+}
+
+function updateAgentCharCounter() {
+    const input = document.getElementById('agentMessageInput');
+    const counter = document.getElementById('agentCharCounter');
+    if (!input || !counter) return;
+    
+    const length = input.value.length;
+    const maxLength = 5000;
+    counter.textContent = `${length}/${maxLength}`;
+    
+    if (length >= maxLength) {
+        counter.style.color = '#ef5350';
+    } else if (length >= maxLength * 0.9) {
+        counter.style.color = '#ff9800';
+    } else {
+        counter.style.color = '';
+    }
+}
+
+function updateAgentSendButton() {
+    const input = document.getElementById('agentMessageInput');
+    const sendButton = document.getElementById('agentSendButton');
+    if (!input || !sendButton) return;
+    
+    const hasText = input.value.trim().length > 0;
+    const underLimit = input.value.length <= 5000;
+    sendButton.disabled = !hasText || !underLimit || agentIsTyping;
+    
+    if (sendButton.disabled) {
+        sendButton.style.opacity = '0.5';
+    } else {
+        sendButton.style.opacity = '1';
+    }
+}
+
+async function sendAgentMessage() {
+    const input = document.getElementById('agentMessageInput');
+    const sendButton = document.getElementById('agentSendButton');
+    const welcomeScreen = document.getElementById('agentWelcomeScreen');
+    const chatContainer = document.getElementById('agentChatContainer');
+    
+    if (!input || !sendButton) return;
+    
+    const message = input.value.trim();
+    
+    if (!message || message.length > 5000 || agentIsTyping) {
+        return;
+    }
+    
+    // Esconder welcome screen
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+    }
+    
+    // Adicionar mensagem do usuário
+    addAgentMessage(message, 'user');
+    
+    // Limpar input
+    input.value = '';
+    updateAgentCharCounter();
+    autoResizeAgentTextarea();
+    updateAgentSendButton();
+    
+    // Mostrar indicador de digitação
+    showAgentTypingIndicator();
+    agentIsTyping = true;
+    updateAgentSendButton();
+    
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        hideAgentTypingIndicator();
+        
+        if (data.status === 'success' && data.response) {
+            addAgentMessage(data.response.trim(), 'maki');
+        } else {
+            const errorMsg = data.error || 'Desculpe, ocorreu um erro. Tente novamente.';
+            addAgentMessage(`❌ ${errorMsg}`, 'maki', true);
+        }
+    } catch (error) {
+        console.error('Erro ao enviar mensagem:', error);
+        hideAgentTypingIndicator();
+        addAgentMessage('❌ Desculpe, não consegui processar sua mensagem. Verifique sua conexão e tente novamente.', 'maki', true);
+    } finally {
+        agentIsTyping = false;
+        updateAgentSendButton();
+        input.focus();
+    }
+}
+
+function addAgentMessage(text, sender, isError = false) {
+    const chatContainer = document.getElementById('agentChatContainer');
+    if (!chatContainer) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = 'display: flex; gap: 1rem; padding: 1rem 0; animation: slideIn 0.3s ease;';
+    if (sender === 'user') {
+        messageDiv.style.justifyContent = 'flex-end';
+    }
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    const escapedText = escapeHtml(text).replace(/\n/g, '<br>');
+    const avatar = sender === 'maki' ? '🧠' : '👤';
+    
+    const messageStyle = sender === 'user' 
+        ? 'background: var(--gradient-secondary); color: white; border: none;'
+        : isError 
+            ? 'background: #ffebee; border: 1px solid #ef5350; color: #c62828;'
+            : 'background: white; border: 1px solid var(--color-gray-200); color: var(--color-gray-900);';
+    
+    messageDiv.innerHTML = `
+        ${sender === 'maki' ? `<div style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; background: var(--gradient-secondary); box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);">${avatar}</div>` : ''}
+        <div style="max-width: 70%; display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="padding: 1rem 1.25rem; border-radius: 18px; line-height: 1.7; font-size: 0.95rem; word-wrap: break-word; white-space: pre-wrap; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); ${messageStyle}">${escapedText}</div>
+            <div style="font-size: 0.75rem; color: var(--color-gray-600); padding: 0 0.5rem;">${timeString}</div>
+        </div>
+        ${sender === 'user' ? `<div style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; background: var(--color-gray-300);">${avatar}</div>` : ''}
+    `;
+    
+    chatContainer.appendChild(messageDiv);
+    scrollAgentToBottom();
+}
+
+function showAgentTypingIndicator() {
+    const chatContainer = document.getElementById('agentChatContainer');
+    if (!chatContainer) return;
+    
+    hideAgentTypingIndicator();
+    
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'agentTypingIndicator';
+    typingDiv.style.cssText = 'display: flex; gap: 1rem; padding: 1rem 0;';
+    typingDiv.innerHTML = `
+        <div style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; background: var(--gradient-secondary);">🧠</div>
+        <div style="display: flex; gap: 0.5rem; padding: 1rem 1.25rem; background: white; border: 1px solid var(--color-gray-200); border-radius: 18px; align-items: center;">
+            <div style="width: 8px; height: 8px; background: var(--color-secondary); border-radius: 50%; animation: typing 1.4s infinite ease-in-out;"></div>
+            <div style="width: 8px; height: 8px; background: var(--color-secondary); border-radius: 50%; animation: typing 1.4s infinite ease-in-out; animation-delay: 0.2s;"></div>
+            <div style="width: 8px; height: 8px; background: var(--color-secondary); border-radius: 50%; animation: typing 1.4s infinite ease-in-out; animation-delay: 0.4s;"></div>
+        </div>
+    `;
+    
+    chatContainer.appendChild(typingDiv);
+    scrollAgentToBottom();
+}
+
+function hideAgentTypingIndicator() {
+    const indicator = document.getElementById('agentTypingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+function scrollAgentToBottom() {
+    const chatContainer = document.getElementById('agentChatContainer');
+    if (chatContainer) {
+        chatContainer.scrollTo({
+            top: chatContainer.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+}
+
+// Adicionar estilos CSS para o Agent na home
+const agentStyles = `
+    .agent-suggestion-btn {
+        padding: 1.25rem;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        text-align: center;
+    }
+    .agent-suggestion-btn:hover {
+        border-color: var(--color-secondary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .agent-suggestion-btn span:last-child {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    #agentInputWrapper:focus-within {
+        border-color: var(--color-secondary);
+        box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+    #agentSendButton:hover:not(:disabled) {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    }
+    #agentSendButton:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+`;
+
+const styleSheet = document.createElement('style');
+styleSheet.textContent = agentStyles;
+document.head.appendChild(styleSheet);
