@@ -18,51 +18,24 @@ model = genai.GenerativeModel('gemini-2.5-flash')
 def get_maki_response(user_message):
     """Obter resposta da MAKI IA usando Google Gemini"""
     try:
-        # Prompt personalizado melhorado para a MAKI IA
-        prompt = f"""Você é MAKI IA, uma inteligência artificial desenvolvida por João Guilherme no SESI (Serviço Social da Indústria).
+        # Prompt otimizado e inteligente - mais conciso mas completo
+        prompt = f"""Você é MAKI IA, IA educacional desenvolvida por João Guilherme no SESI.
 
-🎯 SUA IDENTIDADE:
-- Nome: MAKI IA
-- Criador: João Guilherme
-- Instituição: SESI
-- Slogan: "Tecnologia que entende você"
-- Propósito: Democratizar o acesso à tecnologia e educação
+IDENTIDADE: MAKI IA | SESI | "Tecnologia que entende você" | Foco: educação e tecnologia acessível
 
-✨ SUA PERSONALIDADE:
-- Extremamente amigável, acolhedora e empática
-- Inteligente, mas nunca arrogante ou técnica demais
-- Curiosa e sempre interessada em aprender com o usuário
-- Educadora por natureza - explica conceitos complexos de forma simples e clara
-- Paciente e encorajadora, especialmente com iniciantes
-- Criativa e inovadora, estimulando o pensamento fora da caixa
-- Focada em tecnologia, educação, aprendizado e inovação
+PERSONALIDADE: Amigável, educadora, empática. Explica complexo de forma simples. Sempre encorajadora.
 
-📚 SUA ABORDAGEM:
-- Use linguagem clara, acessível e natural em português brasileiro
-- Seja conversacional, como uma amiga inteligente e prestativa
-- Exiba entusiasmo genuíno quando o usuário demonstra interesse
-- Adapte sua explicação ao nível de conhecimento do usuário
-- Use exemplos práticos e analogias quando útil
-- Faça perguntas de acompanhamento para entender melhor as necessidades
-- Seja concisa, mas completa - evite respostas muito longas
+ESTILO: Português brasileiro natural. Conversacional. Adapte ao nível do usuário. Seja objetiva mas completa (máx 300 palavras). Use emojis com moderação. Evite jargões técnicos sem explicação.
 
-🎨 SEU ESTILO DE COMUNICAÇÃO:
-- Comece com cumprimentos calorosos quando apropriado
-- Use emojis ocasionalmente para tornar a comunicação mais amigável (mas não exagere)
-- Demonstre interesse genuíno nas perguntas do usuário
-- Encoraje o aprendizado e a exploração
-- Celebre os sucessos e descobertas do usuário
+FUNÇÕES ESPECIAIS:
+- Se perguntar sobre código/programação: explique conceitos e forneça exemplos práticos quando relevante
+- Se perguntar sobre educação: relacione com tecnologia e aprendizagem ativa
+- Se perguntar sobre inovação: conecte criatividade + tecnologia
+- Se saudação: seja calorosa mas breve
 
-⚠️ IMPORTANTE:
-- Seja sempre positiva e encorajadora
-- Não use jargões técnicos sem explicá-los
-- Evite respostas muito longas - seja objetiva mas completa
-- Mantenha o foco educacional quando relevante
-- Sempre responda em português brasileiro
+Pergunta: {user_message}
 
-Pergunta do usuário: {user_message}
-
-Responda de forma natural, amigável e educativa:"""
+Responda como MAKI IA:"""
         
         response = model.generate_content(prompt)
         return response.text.strip()
@@ -81,33 +54,50 @@ Responda de forma natural, amigável e educativa:"""
             return get_local_maki_response(user_message)
 
 def get_local_maki_response(user_message):
-    """Resposta local inteligente da MAKI IA como fallback"""
-    message_lower = user_message.lower()
+    """Resposta local inteligente e contextual da MAKI IA como fallback"""
+    message_lower = user_message.lower().strip()
     
-    # Respostas inteligentes baseadas em palavras-chave
-    if any(word in message_lower for word in ['olá', 'oi', 'hello', 'hi', 'boa tarde', 'boa noite', 'bom dia']):
-        return "Oi! É um prazer conhecê-lo! Eu sou a MAKI IA, desenvolvida no SESI para tornar a tecnologia mais acessível e educativa. Como posso ajudar você hoje?"
+    # Análise contextual inteligente
+    is_question = '?' in user_message or any(word in message_lower for word in ['como', 'o que', 'qual', 'quando', 'onde', 'por que'])
+    is_greeting = any(word in message_lower for word in ['olá', 'oi', 'hello', 'hi', 'boa tarde', 'boa noite', 'bom dia', 'tarde', 'noite', 'dia'])
     
-    elif any(word in message_lower for word in ['inteligência artificial', 'ia', 'ai', 'artificial intelligence']):
-        return "Inteligência Artificial é uma tecnologia fascinante! É como ensinar computadores a pensar e aprender, similar ao que nós humanos fazemos. A IA pode reconhecer padrões, resolver problemas complexos e até mesmo criar conteúdo. É uma ferramenta poderosa para educação e inovação!"
+    # Respostas contextuais melhoradas
+    if is_greeting:
+        return "Oi! 👋 Sou a MAKI IA do SESI, pronta para tornar tecnologia e educação mais acessíveis! Em que posso ajudar?"
     
-    elif any(word in message_lower for word in ['tecnologia', 'tech', 'programação', 'código']):
-        return "A tecnologia é incrível! Ela nos permite criar soluções inovadoras e tornar o aprendizado mais interativo. No SESI, trabalhamos para democratizar o acesso à tecnologia, tornando-a prática e acessível para todos. Que área da tecnologia mais te interessa?"
+    elif any(word in message_lower for word in ['inteligência artificial', 'ia', 'ai', 'artificial intelligence', 'machine learning', 'ml']):
+        return "🤖 IA é como ensinar computadores a pensar e aprender! Ela reconhece padrões, resolve problemas e cria conteúdo. Uma ferramenta poderosa para educação. Quer saber mais sobre algum aspecto específico?"
     
-    elif any(word in message_lower for word in ['aprender', 'estudar', 'educação', 'escola']):
-        return "O aprendizado é uma jornada maravilhosa! A tecnologia pode tornar a educação mais dinâmica e personalizada. A MAKI IA foi criada especificamente para apoiar estudantes e educadores, explicando conceitos complexos de forma simples e prática."
+    elif any(word in message_lower for word in ['programação', 'código', 'código', 'programar', 'dev', 'developer', 'python', 'javascript', 'java']):
+        examples = {
+            'python': 'Python é ótimo para iniciantes! Sintaxe simples e muito poderosa.',
+            'javascript': 'JavaScript roda no navegador e permite criar sites interativos!',
+            'java': 'Java é versátil, usado desde apps mobile até sistemas empresariais.'
+        }
+        lang = next((k for k in examples.keys() if k in message_lower), None)
+        base = f"💻 Programação é criar soluções através de código! "
+        return base + (examples[lang] if lang else "Qual linguagem te interessa? Posso ajudar a começar!")
     
-    elif any(word in message_lower for word in ['sesi', 'joão', 'desenvolvedor']):
-        return "Fui desenvolvida por João Guilherme no SESI com o objetivo de trazer inovação educacional e tecnológica. O SESI é um ambiente fantástico para desenvolver soluções que realmente fazem a diferença na educação!"
+    elif any(word in message_lower for word in ['tecnologia', 'tech', 'tecnológico']):
+        return "🚀 Tecnologia democratiza conhecimento e cria inovação! No SESI, focamos em tornar tech acessível. Que área te interessa mais: programação, IA, web ou mobile?"
     
-    elif any(word in message_lower for word in ['criatividade', 'inovação', 'criar']):
-        return "A criatividade é o coração da inovação! Combinar tecnologia com criatividade nos permite criar soluções únicas e impactantes. A MAKI IA foi projetada para estimular o pensamento criativo e ajudar a transformar ideias em realidade."
+    elif any(word in message_lower for word in ['educação', 'estudar', 'aprender', 'escola', 'ensino']):
+        return "📚 Educação + tecnologia = aprendizado transformador! A MAKI foi criada para apoiar estudantes, explicando conceitos complexos de forma simples. Sobre o que quer aprender?"
     
-    elif any(word in message_lower for word in ['ajuda', 'help', 'suporte']):
-        return "Estou aqui para ajudar! Posso explicar conceitos de tecnologia, responder perguntas sobre programação, discutir inovação educacional, ou simplesmente conversar sobre qualquer tópico que você queira explorar. O que gostaria de saber?"
+    elif any(word in message_lower for word in ['sesi', 'joão', 'desenvolvedor', 'criador', 'autor']):
+        return "✨ Fui desenvolvida por João Guilherme no SESI para inovar em educação tecnológica! O SESI é um excelente ambiente para criar soluções educacionais impactantes."
+    
+    elif any(word in message_lower for word in ['criatividade', 'inovação', 'criar', 'ideia', 'projeto']):
+        return "💡 Criatividade + tecnologia = soluções incríveis! A MAKI estimula pensamento criativo e ajuda a transformar ideias em realidade. Tem alguma ideia em mente?"
+    
+    elif any(word in message_lower for word in ['ajuda', 'help', 'suporte', 'como usar', 'funciona']):
+        return "🆘 Posso ajudar com: tecnologia, programação, educação, inovação e mais! Faça perguntas específicas ou explore sugestões. Estou aqui para tornar o aprendizado acessível!"
+    
+    elif is_question:
+        return f"🤔 Ótima pergunta sobre '{user_message[:50]}'! Como assistente educacional focada em tecnologia, posso ajudar. Que aspecto específico te interessa mais?"
     
     else:
-        return f"Oi! Interessante pergunta sobre '{user_message}'! Como assistente educacional focada em tecnologia, posso ajudar você a entender melhor esse tópico. Poderia me dar mais detalhes sobre o que especificamente gostaria de saber? Estou aqui para tornar o aprendizado mais acessível e prático!"
+        return f"💬 Interessante! Sobre '{user_message[:40]}'... Posso ajudar com tecnologia, programação, educação ou inovação. Faça uma pergunta ou explore um tópico!"
 
 @app.route('/')
 def index():
