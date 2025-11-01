@@ -37,17 +37,45 @@ systemctl daemon-reload
 echo "✅ Habilitando serviço para iniciar automaticamente..."
 systemctl enable maki-ia.service
 
+# Parar containers existentes antes de iniciar o serviço (se necessário)
+echo "🛑 Parando containers existentes (se houver)..."
+cd "$CURRENT_DIR"
+if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    docker compose down 2>/dev/null || true
+elif command -v docker-compose &> /dev/null; then
+    docker-compose down 2>/dev/null || true
+fi
+
 # Iniciar o serviço
 echo "🚀 Iniciando serviço..."
 systemctl start maki-ia.service
+
+# Aguardar alguns segundos
+sleep 3
 
 # Verificar status
 echo ""
 echo "📊 Status do serviço:"
 systemctl status maki-ia.service --no-pager
 
+# Verificar se os containers estão rodando
+echo ""
+echo "📦 Verificando containers Docker..."
+if command -v docker &> /dev/null; then
+    if docker ps | grep -q maki_ia_app; then
+        echo "✅ Container está rodando!"
+    else
+        echo "⚠️  Container não está rodando. Verifique os logs com: sudo journalctl -u maki-ia -f"
+    fi
+fi
+
 echo ""
 echo "✅ Serviço instalado e iniciado com sucesso!"
+echo ""
+echo "🔒 O serviço garantirá que os containers continuem rodando mesmo após:"
+echo "   - Fechar o Putty/SSH"
+echo "   - Reiniciar o servidor"
+echo "   - Logout do usuário"
 echo ""
 echo "Comandos úteis:"
 echo "  - Ver status: sudo systemctl status maki-ia"

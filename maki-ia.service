@@ -11,11 +11,15 @@ WorkingDirectory=/opt/maki-ia
 # Tenta docker compose primeiro (versão nova), depois docker-compose (versão antiga)
 ExecStart=/bin/bash -c 'if command -v docker &> /dev/null && docker compose version &> /dev/null; then docker compose up -d; else docker-compose up -d; fi'
 ExecStop=/bin/bash -c 'if command -v docker &> /dev/null && docker compose version &> /dev/null; then docker compose down; else docker-compose down; fi'
-TimeoutStartSec=0
+# Garantir que o serviço inicie após o Docker estar pronto
+TimeoutStartSec=300
+TimeoutStopSec=60
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
+# Garantir que o serviço continue mesmo após logout
+KillMode=none
 
 [Install]
 WantedBy=multi-user.target

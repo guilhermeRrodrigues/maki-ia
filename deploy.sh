@@ -87,10 +87,25 @@ if docker ps | grep -q maki_ia_app; then
         # Habilitar serviço para iniciar no boot
         sudo systemctl enable maki-ia.service
         
+        # IMPORTANTE: Iniciar o serviço agora (não apenas habilitar)
+        echo -e "${YELLOW}🚀 Iniciando o serviço systemd...${NC}"
+        sudo systemctl start maki-ia.service || echo -e "${YELLOW}⚠️  Serviço pode já estar rodando${NC}"
+        
+        # Verificar status do serviço
+        sleep 2
+        if sudo systemctl is-active --quiet maki-ia.service; then
+            echo -e "${GREEN}✅ Serviço systemd está ativo e rodando!${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Serviço systemd não está ativo. Verifique com: sudo systemctl status maki-ia${NC}"
+        fi
+        
         echo -e "${GREEN}✅ Serviço systemd configurado e habilitado!${NC}"
         echo -e "${YELLOW}ℹ️  O serviço iniciará automaticamente no boot do sistema${NC}"
+        echo -e "${GREEN}✅ Os containers continuarão rodando mesmo após fechar o Putty/SSH!${NC}"
     else
         echo -e "${YELLOW}⚠️  Arquivo maki-ia.service não encontrado. Continuando sem serviço systemd...${NC}"
+        echo -e "${RED}⚠️  ATENÇÃO: Sem o serviço systemd, os containers podem parar ao fechar o SSH!${NC}"
+        echo -e "${YELLOW}ℹ️  Para resolver isso, execute: sudo ./INSTALAR_SERVICO.sh${NC}"
     fi
     
     echo ""
@@ -106,6 +121,13 @@ if docker ps | grep -q maki_ia_app; then
     echo "  - Reiniciar serviço: sudo systemctl restart maki-ia"
     echo ""
     echo -e "${GREEN}✅ O container continuará rodando mesmo após fechar o Putty/SSH!${NC}"
+    echo ""
+    echo -e "${YELLOW}📝 Verificação final:${NC}"
+    echo -e "  - Container rodando: $(docker ps | grep -q maki_ia_app && echo '✅ Sim' || echo '❌ Não')"
+    echo -e "  - Serviço systemd: $(sudo systemctl is-active --quiet maki-ia.service && echo '✅ Ativo' || echo '⚠️  Não ativo')"
+    echo ""
+    echo -e "${YELLOW}💡 Dica: Se os containers pararem ao fechar o SSH, execute:${NC}"
+    echo -e "   sudo systemctl start maki-ia"
     
 else
     echo -e "${RED}❌ Erro: Container não está rodando. Verifique os logs:${NC}"

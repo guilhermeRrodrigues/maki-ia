@@ -315,6 +315,36 @@ docker compose logs -f app
 docker exec -it maki_ia_app curl http://localhost:5000/api/status
 ```
 
+### ⚠️ Containers param ao fechar Putty/SSH
+
+Este é um problema comum quando os containers não estão sendo gerenciados pelo systemd. **Solução:**
+
+```bash
+# 1. Verificar se o serviço systemd está instalado
+sudo systemctl status maki-ia
+
+# 2. Se o serviço não existir ou não estiver ativo, instale/configure:
+sudo ./INSTALAR_SERVICO.sh
+
+# 3. OU execute o deploy novamente (ele configurará automaticamente):
+./deploy.sh
+
+# 4. Verificar se o serviço está ativo após o deploy:
+sudo systemctl is-active maki-ia
+
+# 5. Se ainda não funcionar, verifique os logs do serviço:
+sudo journalctl -u maki-ia -f
+
+# 6. Garantir que o serviço está habilitado para iniciar no boot:
+sudo systemctl enable maki-ia
+sudo systemctl start maki-ia
+
+# 7. Verificar se os containers estão rodando:
+docker ps | grep maki_ia_app
+```
+
+**Importante:** Após executar `./deploy.sh`, o serviço systemd deve estar configurado e iniciado automaticamente. Se os containers ainda param ao fechar o SSH, execute os passos acima.
+
 ### Rebuild completo
 
 ```bash
