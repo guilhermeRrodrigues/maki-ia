@@ -66,6 +66,13 @@ if docker ps | grep -q maki_ia_app; then
     
     if curl -f http://localhost/api/status &> /dev/null; then
         echo -e "${GREEN}✅ Aplicação está respondendo corretamente!${NC}"
+        
+        # Testar rota /agent
+        if curl -f http://localhost/agent &> /dev/null; then
+            echo -e "${GREEN}✅ Modo Agent (/agent) está acessível!${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Rota /agent pode estar com problema. Verifique os logs.${NC}"
+        fi
     else
         echo -e "${YELLOW}⚠️  A aplicação pode estar iniciando ainda. Verifique os logs com: ${DOCKER_COMPOSE_CMD} logs${NC}"
     fi
