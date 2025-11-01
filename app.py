@@ -119,6 +119,11 @@ def home():
     """Página principal de apresentação da MAKI IA"""
     return render_template('home.html')
 
+@app.route('/agent')
+def agent():
+    """Página do modo agent - Interface estilo Claude IA"""
+    return render_template('agent.html')
+
 @app.route('/api/info')
 def api_info():
     """API endpoint com informações da MAKI IA"""
@@ -191,12 +196,12 @@ def api_chat():
                 'status': 'error'
             }), 400
         
-        # Validar limite de 500 caracteres
-        if len(user_message) > 500:
+        # Validar limite de 5000 caracteres
+        if len(user_message) > 5000:
             return jsonify({
-                'error': 'Mensagem muito longa. Por favor, limite sua mensagem a 500 caracteres.',
+                'error': 'Mensagem muito longa. Por favor, limite sua mensagem a 5000 caracteres.',
                 'status': 'error',
-                'max_length': 500,
+                'max_length': 5000,
                 'current_length': len(user_message)
             }), 400
         
