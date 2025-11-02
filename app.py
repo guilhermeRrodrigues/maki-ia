@@ -12,11 +12,26 @@ app.config['SECRET_KEY'] = 'maki-ia-secret-key-2024'
 GEMINI_API_KEY = 'AIzaSyAw6TehD7zj-Hi3hPkpR-R6Rt7v9ILGK8A'
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Configurar modelo Gemini
-model = genai.GenerativeModel('gemini-2.5-flash')
+# Configurar modelo Gemini (usando modelo válido com fallback)
+model = None
+try:
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    print("✅ Modelo Gemini 1.5 Flash configurado com sucesso")
+except Exception as e:
+    print(f"⚠️  Erro ao configurar gemini-1.5-flash: {str(e)}")
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        print("✅ Modelo Gemini Pro configurado com sucesso")
+    except Exception as e2:
+        print(f"⚠️  Erro ao configurar gemini-pro: {str(e2)}")
+        print("ℹ️  Usando fallback local para respostas")
+        model = None
 
 def get_maki_response(user_message):
     """Obter resposta da MAKI IA usando Google Gemini"""
+    if model is None:
+        return get_local_maki_response(user_message)
+    
     try:
         # Prompt otimizado e inteligente - mais conciso mas completo
         prompt = f"""Você é MAKI IA, IA educacional desenvolvida por João Guilherme no SESI.
@@ -112,7 +127,11 @@ def home():
 @app.route('/agent')
 def agent():
     """Página do modo agent - Interface estilo Claude IA"""
-    return render_template('agent.html')
+    try:
+        return render_template('agent.html')
+    except Exception as e:
+        print(f"Erro ao renderizar template agent.html: {str(e)}")
+        return f"Erro ao carregar página: {str(e)}", 500
 
 @app.route('/api/info')
 def api_info():
@@ -156,6 +175,12 @@ def list_models():
 @app.route('/api/test-gemini')
 def test_gemini():
     """Endpoint para testar a API do Gemini"""
+    if model is None:
+        return jsonify({
+            'status': 'error',
+            'message': 'Modelo Gemini não configurado',
+            'error_type': 'ConfigurationError'
+        })
     try:
         # Teste simples
         test_prompt = "Responda apenas: 'API Gemini funcionando!'"
@@ -226,8 +251,19 @@ if __name__ == '__main__':
     os.makedirs('static/js', exist_ok=True)
     os.makedirs('static/images', exist_ok=True)
     
+    # Verificar se templates essenciais existem
+    required_templates = ['home.html', 'agent.html']
+    for template in required_templates:
+        template_path = os.path.join('templates', template)
+        if not os.path.exists(template_path):
+            print(f"⚠️  AVISO: Template {template} não encontrado em {template_path}")
+    
     # Configurações para produção
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
     port = int(os.environ.get('PORT', 5000))
+    
+    print(f"🚀 Iniciando MAKI IA na porta {port}...")
+    print(f"📝 Modo debug: {debug_mode}")
+    print(f"🤖 Modelo Gemini: {'Configurado' if model else 'Não disponível (usando fallback local)'}")
     
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
