@@ -9,6 +9,8 @@ services:
     ports:
       - "80:5000"  # Porta 80 do host mapeia para porta 5000 do container
     restart: unless-stopped
+    # Garantir que o container inicie mesmo com erros
+    command: ["/bin/bash", "-c", "python3 -c 'import app' && /bin/bash /app/start.sh || gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 --access-logfile - --error-logfile - app:app"]
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=0

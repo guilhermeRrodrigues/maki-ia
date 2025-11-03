@@ -46,6 +46,21 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 # Verificar permissões antes de mudar de usuário
 RUN ls -la /app/ | head -10
 
+# Criar script de inicialização ANTES de mudar de usuário (como root)
+RUN echo '#!/bin/bash' > /app/start.sh && \
+    echo 'set -e' >> /app/start.sh && \
+    echo 'echo "🚀 Iniciando MAKI IA..."' >> /app/start.sh && \
+    echo 'echo "📁 Diretório: $(pwd)"' >> /app/start.sh && \
+    echo 'echo "📂 Verificando arquivos:"' >> /app/start.sh && \
+    echo 'test -f /app/app.py && echo "✅ app.py existe" || echo "❌ app.py NÃO existe"' >> /app/start.sh && \
+    echo 'test -f /app/templates/agent.html && echo "✅ agent.html existe" || echo "❌ agent.html NÃO existe"' >> /app/start.sh && \
+    echo 'test -f /app/static/js/agent.js && echo "✅ agent.js existe" || echo "❌ agent.js NÃO existe"' >> /app/start.sh && \
+    echo 'test -f /app/static/css/agent.css && echo "✅ agent.css existe" || echo "❌ agent.css NÃO existe"' >> /app/start.sh && \
+    echo 'echo "🔧 Iniciando Gunicorn..."' >> /app/start.sh && \
+    echo 'exec gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info app:app' >> /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Mudar para usuário não-root
 USER appuser
 
 # Verificar novamente após mudar de usuário
@@ -56,5 +71,5 @@ RUN test -f /app/templates/agent.html && echo "✅ agent.html acessível" || ech
 # Expõe a porta 5000
 EXPOSE 5000
 
-# Comando para iniciar a aplicação com Gunicorn (produção)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+# Comando para iniciar a aplicação
+CMD ["/bin/bash", "/app/start.sh"]
