@@ -1,25 +1,47 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, send_from_directory 
 import os
 import google.generativeai as genai
 import json
+from pathlib import Path
 
-app = Flask(__name__)
+# Obter diretório base da aplicação
+BASE_DIR = Path(__file__).resolve().parent
+
+# Configurar Flask com caminhos explícitos para produção
+app = Flask(
+    __name__,
+    template_folder=str(BASE_DIR / 'templates'),
+    static_folder=str(BASE_DIR / 'static'),
+    static_url_path='/static'
+)
 
 # Configurações
 app.config['SECRET_KEY'] = 'maki-ia-secret-key-2024'
 
 # Configurar API do Google Gemini
 GEMINI_API_KEY = 'AIzaSyAw6TehD7zj-Hi3hPkpR-R6Rt7v9ILGK8A'
-genai.configure(api_key=GEMINI_API_KEY)
+
+# Garantir que a chave está configurada
+try:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print(f"✅ Chave de API Gemini configurada (últimos 4 dígitos: {GEMINI_API_KEY[-4:]})")
+except Exception as e:
+    print(f"❌ Erro ao configurar chave de API: {str(e)}")
 
 # Configurar modelo Gemini (usando modelo válido com fallback)
 model = None
 try:
+    # Garantir que a API está configurada antes de criar o modelo
+    if not GEMINI_API_KEY:
+        raise ValueError("Chave de API não configurada")
+    
+    genai.configure(api_key=GEMINI_API_KEY)  # Reconfigurar para garantir
     model = genai.GenerativeModel('gemini-1.5-flash')
     print("✅ Modelo Gemini 1.5 Flash configurado com sucesso")
 except Exception as e:
     print(f"⚠️  Erro ao configurar gemini-1.5-flash: {str(e)}")
     try:
+        genai.configure(api_key=GEMINI_API_KEY)  # Reconfigurar novamente
         model = genai.GenerativeModel('gemini-pro')
         print("✅ Modelo Gemini Pro configurado com sucesso")
     except Exception as e2:
@@ -29,8 +51,39 @@ except Exception as e:
 
 def get_maki_response(user_message):
     """Obter resposta da MAKI IA usando Google Gemini"""
-    if model is None:
+    # Sempre garantir que a API está configurada
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        app.logger.error(f"Erro ao configurar API key: {str(e)}")
         return get_local_maki_response(user_message)
+    
+    if model is None:
+        # Tentar criar modelo novamente se não existir
+        try:
+            temp_model = genai.GenerativeModel('gemini-1.5-flash')
+            prompt = f"""Você é MAKI IA, IA educacional desenvolvida por João Guilherme no SESI.
+
+IDENTIDADE: MAKI IA | SESI | "Tecnologia que entende você" | Foco: educação e tecnologia acessível
+
+PERSONALIDADE: Amigável, educadora, empática. Explica complexo de forma simples. Sempre encorajadora.
+
+ESTILO: Português brasileiro natural. Conversacional. Adapte ao nível do usuário. Seja objetiva mas completa (máx 300 palavras). Use emojis com moderação. Evite jargões técnicos sem explicação.
+
+FUNÇÕES ESPECIAIS:
+- Se perguntar sobre código/programação: explique conceitos e forneça exemplos práticos quando relevante
+- Se perguntar sobre educação: relacione com tecnologia e aprendizagem ativa
+- Se perguntar sobre inovação: conecte criatividade + tecnologia
+- Se saudação: seja calorosa mas breve
+
+Pergunta: {user_message}
+
+Responda como MAKI IA:"""
+            response = temp_model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            app.logger.warning(f"Erro ao criar modelo temporário: {str(e)}")
+            return get_local_maki_response(user_message)
     
     try:
         # Prompt otimizado e inteligente - mais conciso mas completo
@@ -55,16 +108,16 @@ Responda como MAKI IA:"""
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        print(f"Erro na API Gemini: {str(e)}")
+        app.logger.error(f"Erro na API Gemini: {str(e)}")
         # Tentar novamente com configuração diferente
         try:
-            # Configurar novamente a API
+            # Garantir que a API está configurada antes de tentar novamente
             genai.configure(api_key=GEMINI_API_KEY)
             model_retry = genai.GenerativeModel('gemini-1.5-flash')
             response = model_retry.generate_content(prompt)
             return response.text.strip()
         except Exception as e2:
-            print(f"Segunda tentativa falhou: {str(e2)}")
+            app.logger.error(f"Segunda tentativa falhou: {str(e2)}")
             # Fallback para respostas inteligentes locais
             return get_local_maki_response(user_message)
 
@@ -128,9 +181,25 @@ def home():
 def agent():
     """Página do modo agent - Interface estilo Claude IA"""
     try:
+        # Verificar se o template existe antes de renderizar
+        template_path = BASE_DIR / 'templates' / 'agent.html'
+        if not template_path.exists():
+            app.logger.error(f"Template não encontrado: {template_path}")
+            return "Template agent.html não encontrado. Verifique os arquivos da aplicação.", 500
+        
+        # Verificar arquivos estáticos necessários
+        required_static = {
+            'js': BASE_DIR / 'static' / 'js' / 'agent.js',
+            'css': BASE_DIR / 'static' / 'css' / 'agent.css'
+        }
+        
+        missing_files = [name for name, path in required_static.items() if not path.exists()]
+        if missing_files:
+            app.logger.warning(f"Arquivos estáticos faltando: {missing_files}")
+        
         return render_template('agent.html')
     except Exception as e:
-        print(f"Erro ao renderizar template agent.html: {str(e)}")
+        app.logger.error(f"Erro ao renderizar template agent.html: {str(e)}", exc_info=True)
         return f"Erro ao carregar página: {str(e)}", 500
 
 @app.route('/api/info')
@@ -175,26 +244,32 @@ def list_models():
 @app.route('/api/test-gemini')
 def test_gemini():
     """Endpoint para testar a API do Gemini"""
-    if model is None:
-        return jsonify({
-            'status': 'error',
-            'message': 'Modelo Gemini não configurado',
-            'error_type': 'ConfigurationError'
-        })
     try:
+        # Garantir que a API está configurada
+        genai.configure(api_key=GEMINI_API_KEY)
+        
+        # Tentar usar o modelo existente ou criar um novo
+        test_model = model
+        if test_model is None:
+            test_model = genai.GenerativeModel('gemini-1.5-flash')
+        
         # Teste simples
         test_prompt = "Responda apenas: 'API Gemini funcionando!'"
-        response = model.generate_content(test_prompt)
+        response = test_model.generate_content(test_prompt)
         return jsonify({
             'status': 'success',
             'message': 'API Gemini funcionando!',
-            'response': response.text.strip()
+            'response': response.text.strip(),
+            'api_key_configured': bool(GEMINI_API_KEY),
+            'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'message': f'Erro na API Gemini: {str(e)}',
-            'error_type': type(e).__name__
+            'error_type': type(e).__name__,
+            'api_key_configured': bool(GEMINI_API_KEY),
+            'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None
         })
 
 @app.route('/api/chat', methods=['POST'])
@@ -244,26 +319,65 @@ def api_status():
         'ai_enabled': True
     })
 
+@app.route('/api/debug/files')
+def debug_files():
+    """Endpoint de diagnóstico para verificar arquivos em produção"""
+    try:
+        files_status = {
+            'base_dir': str(BASE_DIR),
+            'templates': {
+                'agent.html': (BASE_DIR / 'templates' / 'agent.html').exists(),
+                'home.html': (BASE_DIR / 'templates' / 'home.html').exists(),
+            },
+            'static': {
+                'js/agent.js': (BASE_DIR / 'static' / 'js' / 'agent.js').exists(),
+                'css/agent.css': (BASE_DIR / 'static' / 'css' / 'agent.css').exists(),
+            },
+            'flask_config': {
+                'template_folder': app.template_folder,
+                'static_folder': app.static_folder,
+                'static_url_path': app.static_url_path
+            }
+        }
+        return jsonify(files_status)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
-    # Criar diretórios necessários
-    os.makedirs('templates', exist_ok=True)
-    os.makedirs('static/css', exist_ok=True)
-    os.makedirs('static/js', exist_ok=True)
-    os.makedirs('static/images', exist_ok=True)
+    # Criar diretórios necessários (usando Path para compatibilidade)
+    (BASE_DIR / 'templates').mkdir(exist_ok=True)
+    (BASE_DIR / 'static' / 'css').mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / 'static' / 'js').mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / 'static' / 'images').mkdir(parents=True, exist_ok=True)
     
     # Verificar se templates essenciais existem
     required_templates = ['home.html', 'agent.html']
     for template in required_templates:
-        template_path = os.path.join('templates', template)
-        if not os.path.exists(template_path):
+        template_path = BASE_DIR / 'templates' / template
+        if not template_path.exists():
             print(f"⚠️  AVISO: Template {template} não encontrado em {template_path}")
+            app.logger.warning(f"Template {template} não encontrado")
+    
+    # Verificar arquivos estáticos
+    required_static = {
+        'agent.js': BASE_DIR / 'static' / 'js' / 'agent.js',
+        'agent.css': BASE_DIR / 'static' / 'css' / 'agent.css'
+    }
+    for name, path in required_static.items():
+        if not path.exists():
+            print(f"⚠️  AVISO: Arquivo estático {name} não encontrado em {path}")
+            app.logger.warning(f"Arquivo estático {name} não encontrado")
     
     # Configurações para produção
     debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
     port = int(os.environ.get('PORT', 5000))
     
     print(f"🚀 Iniciando MAKI IA na porta {port}...")
+    print(f"📁 Diretório base: {BASE_DIR}")
     print(f"📝 Modo debug: {debug_mode}")
+    print(f"🔑 Chave de API Gemini: {'Configurada' if GEMINI_API_KEY else 'NÃO CONFIGURADA'} (últimos 4 dígitos: {GEMINI_API_KEY[-4:] if GEMINI_API_KEY else 'N/A'})")
     print(f"🤖 Modelo Gemini: {'Configurado' if model else 'Não disponível (usando fallback local)'}")
+    print(f"📂 Templates: {BASE_DIR / 'templates'}")
+    print(f"📂 Static: {BASE_DIR / 'static'}")
     
     app.run(debug=debug_mode, host='0.0.0.0', port=port)

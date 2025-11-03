@@ -21,6 +21,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copia o restante dos arquivos da aplicação
 COPY . .
 
+# Garantir que templates e static existam e tenham permissões corretas
+RUN mkdir -p /app/templates /app/static/css /app/static/js /app/static/images && \
+    chmod -R 755 /app/templates /app/static
+
 # Cria um usuário não-root para segurança
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
