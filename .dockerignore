@@ -36,10 +36,10 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 
-# Documentation
-README.md
-DEPLOY.md
-*.md
+# Documentation (mas manter arquivos importantes)
+# README.md
+# DEPLOY.md
+# Mantém DEPLOY_RAPIDO.md e TESTE_AGENT.md se necessário para referência
 
 # Logs
 *.log
