@@ -130,47 +130,14 @@ def initialize_gemini_model():
 initialize_gemini_model()
 
 def get_maki_response(user_message):
-    """Obter resposta da MAKI IA usando Google Gemini"""
-    # Sempre garantir que a API está configurada
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        error_msg = f"Erro ao configurar API key: {str(e)}"
-        app.logger.error(error_msg)
-        return get_local_maki_response(user_message)
+    """Obter resposta da MAKI IA usando Google Gemini - SEMPRE tenta usar Gemini primeiro"""
+    global model, model_error
     
-    # Se modelo não existe, tentar inicializar novamente
-    if model is None:
-        app.logger.info("Modelo não existe, tentando inicializar...")
-        initialize_gemini_model()
-        
-        if model is None:
-            app.logger.warning(f"Não foi possível inicializar modelo. Erro: {model_error}")
-            return get_local_maki_response(user_message)
+    app.logger.info(f"🔍 Processando mensagem: {user_message[:50]}...")
+    app.logger.info(f"📊 Status do modelo: {model is not None}")
     
-    # Tentar criar modelo temporário se ainda não funcionar
-    if model is None:
-        try:
-            app.logger.info("Tentando criar modelo temporário...")
-            # Tentar diferentes modelos
-            modelos_para_tentar = ['gemini-1.5-flash-latest', 'gemini-pro', 'gemini-1.0-pro']
-            temp_model = None
-            for nome_modelo in modelos_para_tentar:
-                try:
-                    temp_model = genai.GenerativeModel(nome_modelo)
-                    break
-                except:
-                    continue
-            
-            if temp_model is None:
-                raise ValueError("Nenhum modelo disponível")
-            
-            # Testar primeiro
-            test_response = temp_model.generate_content("OK")
-            if not test_response or not test_response.text:
-                raise ValueError("Modelo não retornou resposta válida")
-            
-            prompt = f"""Você é MAKI IA, IA educacional desenvolvida por João Guilherme no SESI.
+    # Prompt padrão
+    prompt = f"""Você é MAKI IA, IA educacional desenvolvida por João Guilherme no SESI.
 
 IDENTIDADE: MAKI IA | SESI | "Tecnologia que entende você" | Foco: educação e tecnologia acessível
 
@@ -187,16 +154,93 @@ FUNÇÕES ESPECIAIS:
 Pergunta: {user_message}
 
 Responda como MAKI IA:"""
-            response = temp_model.generate_content(prompt)
+    
+    # Sempre garantir que a API está configurada
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        app.logger.info("✅ API configurada")
+    except Exception as e:
+        error_msg = f"❌ Erro ao configurar API key: {str(e)}"
+        app.logger.error(error_msg)
+        return get_local_maki_response(user_message)
+    
+    # Lista de modelos para tentar (em ordem de preferência)
+    modelos_para_tentar = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro-latest',
+        'gemini-pro',
+        'gemini-1.0-pro',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+    ]
+    
+    # PRIMEIRA TENTATIVA: Usar modelo global se existir
+    if model is not None:
+        try:
+            app.logger.info(f"✅ Usando modelo global: {type(model).__name__}")
+            response = model.generate_content(prompt)
             if response and response.text:
-                app.logger.info("Modelo temporário funcionou!")
+                app.logger.info("✅ Resposta recebida do Gemini (modelo global)")
                 return response.text.strip()
             else:
-                raise ValueError("Resposta vazia do modelo temporário")
+                app.logger.warning("Resposta vazia do modelo global, tentando outros...")
         except Exception as e:
-            error_msg = f"Erro ao criar modelo temporário: {str(e)}"
-            app.logger.error(error_msg)
-            return get_local_maki_response(user_message)
+            app.logger.warning(f"Erro com modelo global: {str(e)}, tentando outros...")
+    
+    # SEGUNDA TENTATIVA: Tentar criar e usar modelo na hora
+    app.logger.info("🔄 Tentando criar modelo para esta requisição...")
+    for nome_modelo in modelos_para_tentar:
+        try:
+            app.logger.info(f"   Tentando modelo: {nome_modelo}")
+            temp_model = genai.GenerativeModel(nome_modelo)
+            response = temp_model.generate_content(prompt)
+            
+            if response and response.text:
+                app.logger.info(f"✅ Sucesso com modelo {nome_modelo}!")
+                # Atualizar modelo global para próximas requisições
+                model = temp_model
+                model_error = None
+                return response.text.strip()
+            else:
+                app.logger.warning(f"Resposta vazia do modelo {nome_modelo}")
+        except Exception as e:
+            app.logger.warning(f"   Erro com {nome_modelo}: {str(e)[:100]}")
+            continue
+    
+    # TERCEIRA TENTATIVA: Listar modelos disponíveis e usar o primeiro que funcionar
+    app.logger.info("🔄 Listando modelos disponíveis na API...")
+    try:
+        modelos_disponiveis = list(genai.list_models())
+        modelos_suportados = []
+        for m in modelos_disponiveis:
+            if 'generateContent' in m.supported_generation_methods:
+                nome_modelo = m.name.replace('models/', '')
+                modelos_suportados.append(nome_modelo)
+        
+        app.logger.info(f"   Modelos suportados encontrados: {len(modelos_suportados)}")
+        
+        for nome_modelo in modelos_suportados[:10]:  # Tentar apenas os 10 primeiros
+            try:
+                app.logger.info(f"   Tentando modelo disponível: {nome_modelo}")
+                temp_model = genai.GenerativeModel(nome_modelo)
+                response = temp_model.generate_content(prompt)
+                
+                if response and response.text:
+                    app.logger.info(f"✅ Sucesso com modelo disponível {nome_modelo}!")
+                    # Atualizar modelo global
+                    model = temp_model
+                    model_error = None
+                    return response.text.strip()
+            except Exception as e:
+                app.logger.warning(f"   Erro com {nome_modelo}: {str(e)[:100]}")
+                continue
+    except Exception as e:
+        app.logger.error(f"Erro ao listar modelos: {str(e)}")
+    
+    # Se chegou aqui, nenhuma tentativa funcionou
+    app.logger.error("❌ TODAS as tentativas falharam - usando fallback local")
+    app.logger.error(f"   Último erro conhecido: {model_error}")
+    return get_local_maki_response(user_message)
     
     try:
         # Prompt otimizado e inteligente - mais conciso mas completo
