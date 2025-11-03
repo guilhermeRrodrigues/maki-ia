@@ -48,13 +48,15 @@ def initialize_gemini_model():
         return None
     
     # Lista de modelos para tentar (em ordem de preferência)
+    # Baseado nos modelos realmente disponíveis na API
     modelos_para_tentar = [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-preview-05-20',
+        'gemini-2.5-pro-preview-03-25',
         'gemini-1.5-flash-latest',
         'gemini-1.5-pro-latest',
         'gemini-pro',
-        'gemini-1.0-pro',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro'
+        'gemini-1.0-pro'
     ]
     
     # Primeiro, tentar listar modelos disponíveis para ver quais existem
@@ -165,13 +167,15 @@ Responda como MAKI IA:"""
         return get_local_maki_response(user_message)
     
     # Lista de modelos para tentar (em ordem de preferência)
+    # Baseado nos modelos realmente disponíveis na API
     modelos_para_tentar = [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-preview-05-20',
+        'gemini-2.5-pro-preview-03-25',
         'gemini-1.5-flash-latest',
         'gemini-1.5-pro-latest',
         'gemini-pro',
-        'gemini-1.0-pro',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro'
+        'gemini-1.0-pro'
     ]
     
     # PRIMEIRA TENTATIVA: Usar modelo global se existir
