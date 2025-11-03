@@ -230,19 +230,31 @@ if docker ps | grep -q maki_ia_app; then
     fi
     
     echo ""
-    echo -e "${GREEN}🎉 Deploy concluído com sucesso!${NC}"
+    echo -e "${GREEN}🎉 Deploy concluído!${NC}"
+    echo ""
+    echo -e "${YELLOW}🔍 Executando verificação completa...${NC}"
     
+    # Executar script de verificação
+    if [ -f "./verificar_servidor.sh" ]; then
+        ./verificar_servidor.sh
+    else
+        echo -e "${YELLOW}⚠️  Script de verificação não encontrado${NC}"
+    fi
+    
+    echo ""
     # Detectar IP do servidor
     SERVER_IP=$(hostname -I | awk '{print $1}' | head -1)
     if [ -z "$SERVER_IP" ]; then
         SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "seu-servidor")
     fi
     
-    echo -e "${GREEN}📱 Acesse a aplicação em:${NC}"
-    echo -e "   ${GREEN}   - http://$SERVER_IP${NC}"
+    echo -e "${GREEN}📱 URLs para acesso:${NC}"
+    echo -e "   ${GREEN}   - http://$SERVER_IP (use HTTP, não HTTPS!)${NC}"
     echo -e "   ${GREEN}   - http://localhost${NC}"
-    echo -e "   ${GREEN}   - http://localhost/agent (Modo Agent)${NC}"
-    echo -e "   ${GREEN}   - http://localhost/api/status (Status da API)${NC}"
+    echo -e "   ${GREEN}   - http://$SERVER_IP/agent (Modo Agent)${NC}"
+    echo -e "   ${GREEN}   - http://$SERVER_IP/api/status (Status da API)${NC}"
+    echo ""
+    echo -e "${YELLOW}⚠️  IMPORTANTE: Use HTTP (não HTTPS) para acessar!${NC}"
     echo ""
     echo "Comandos úteis:"
     echo "  - Ver logs: ${DOCKER_COMPOSE_CMD} logs -f"
@@ -290,9 +302,17 @@ if docker ps | grep -q maki_ia_app; then
     echo -e "   ${YELLOW}- Reiniciar serviço:${NC} sudo systemctl restart maki-ia"
     echo ""
     echo -e "${YELLOW}🔍 Diagnóstico:${NC}"
+    echo -e "   ${YELLOW}- Verificação completa:${NC} ./verificar_servidor.sh"
     echo -e "   ${YELLOW}- Testar API:${NC} curl http://localhost/api/status"
     echo -e "   ${YELLOW}- Testar Gemini:${NC} curl http://localhost/api/test-gemini"
     echo -e "   ${YELLOW}- Verificar arquivos:${NC} curl http://localhost/api/debug/files"
+    echo -e "   ${YELLOW}- Ver logs:${NC} docker logs -f maki_ia_app"
+    echo ""
+    echo -e "${YELLOW}🔧 Se não funcionar no navegador:${NC}"
+    echo -e "   1. Certifique-se de usar HTTP (não HTTPS)"
+    echo -e "   2. Verifique firewall: sudo ufw allow 80/tcp"
+    echo -e "   3. Execute: ./verificar_servidor.sh"
+    echo -e "   4. Verifique logs: docker logs maki_ia_app"
     echo ""
     echo -e "${GREEN}✅ A aplicação continuará rodando mesmo após fechar o SSH!${NC}"
     

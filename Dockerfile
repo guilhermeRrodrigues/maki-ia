@@ -58,7 +58,8 @@ RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'test -f /app/static/css/agent.css && echo "✅ agent.css existe" || echo "❌ agent.css NÃO existe"' >> /app/start.sh && \
     echo 'echo "🔧 Iniciando Gunicorn..."' >> /app/start.sh && \
     echo 'exec gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info app:app' >> /app/start.sh && \
-    chmod +x /app/start.sh
+    chmod +x /app/start.sh && \
+    chown appuser:appuser /app/start.sh
 
 # Mudar para usuário não-root
 USER appuser
