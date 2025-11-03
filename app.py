@@ -185,7 +185,9 @@ def agent():
         template_path = BASE_DIR / 'templates' / 'agent.html'
         if not template_path.exists():
             app.logger.error(f"Template não encontrado: {template_path}")
-            return "Template agent.html não encontrado. Verifique os arquivos da aplicação.", 500
+            app.logger.error(f"BASE_DIR: {BASE_DIR}")
+            app.logger.error(f"Listando conteúdo de templates: {list((BASE_DIR / 'templates').iterdir()) if (BASE_DIR / 'templates').exists() else 'Diretório não existe'}")
+            return f"Template agent.html não encontrado em {template_path}. Verifique os arquivos da aplicação.", 500
         
         # Verificar arquivos estáticos necessários
         required_static = {
@@ -193,13 +195,24 @@ def agent():
             'css': BASE_DIR / 'static' / 'css' / 'agent.css'
         }
         
-        missing_files = [name for name, path in required_static.items() if not path.exists()]
+        missing_files = []
+        for name, path in required_static.items():
+            if not path.exists():
+                missing_files.append(f"{name}: {path}")
+                app.logger.error(f"Arquivo estático não encontrado: {path}")
+        
         if missing_files:
             app.logger.warning(f"Arquivos estáticos faltando: {missing_files}")
+            # Listar o que existe no diretório static
+            if (BASE_DIR / 'static').exists():
+                app.logger.info(f"Conteúdo de static/js: {list((BASE_DIR / 'static' / 'js').iterdir()) if (BASE_DIR / 'static' / 'js').exists() else 'Diretório não existe'}")
+                app.logger.info(f"Conteúdo de static/css: {list((BASE_DIR / 'static' / 'css').iterdir()) if (BASE_DIR / 'static' / 'css').exists() else 'Diretório não existe'}")
         
         return render_template('agent.html')
     except Exception as e:
-        app.logger.error(f"Erro ao renderizar template agent.html: {str(e)}", exc_info=True)
+        import traceback
+        app.logger.error(f"Erro ao renderizar template agent.html: {str(e)}")
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
         return f"Erro ao carregar página: {str(e)}", 500
 
 @app.route('/api/info')
@@ -323,15 +336,33 @@ def api_status():
 def debug_files():
     """Endpoint de diagnóstico para verificar arquivos em produção"""
     try:
+        # Verificar tamanhos dos arquivos também
+        agent_js_path = BASE_DIR / 'static' / 'js' / 'agent.js'
+        agent_css_path = BASE_DIR / 'static' / 'css' / 'agent.css'
+        
         files_status = {
             'base_dir': str(BASE_DIR),
             'templates': {
-                'agent.html': (BASE_DIR / 'templates' / 'agent.html').exists(),
-                'home.html': (BASE_DIR / 'templates' / 'home.html').exists(),
+                'agent.html': {
+                    'exists': (BASE_DIR / 'templates' / 'agent.html').exists(),
+                    'path': str(BASE_DIR / 'templates' / 'agent.html')
+                },
+                'home.html': {
+                    'exists': (BASE_DIR / 'templates' / 'home.html').exists(),
+                    'path': str(BASE_DIR / 'templates' / 'home.html')
+                },
             },
             'static': {
-                'js/agent.js': (BASE_DIR / 'static' / 'js' / 'agent.js').exists(),
-                'css/agent.css': (BASE_DIR / 'static' / 'css' / 'agent.css').exists(),
+                'js/agent.js': {
+                    'exists': agent_js_path.exists(),
+                    'path': str(agent_js_path),
+                    'size': agent_js_path.stat().st_size if agent_js_path.exists() else 0
+                },
+                'css/agent.css': {
+                    'exists': agent_css_path.exists(),
+                    'path': str(agent_css_path),
+                    'size': agent_css_path.stat().st_size if agent_css_path.exists() else 0
+                },
             },
             'flask_config': {
                 'template_folder': app.template_folder,
@@ -341,7 +372,11 @@ def debug_files():
         }
         return jsonify(files_status)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 if __name__ == '__main__':
     # Criar diretórios necessários (usando Path para compatibilidade)

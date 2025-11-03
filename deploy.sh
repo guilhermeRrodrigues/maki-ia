@@ -98,6 +98,27 @@ docker system prune -f > /dev/null 2>&1 || true
 echo -e "${YELLOW}🔨 Construindo a imagem Docker...${NC}"
 $DOCKER_COMPOSE_CMD build --no-cache
 
+# Verificar se os arquivos foram copiados corretamente (após build, antes de up)
+echo -e "${YELLOW}🔍 Verificando se arquivos foram copiados na imagem...${NC}"
+if docker images | grep -q "maki-ia.*app"; then
+    echo -e "${GREEN}✅ Imagem construída com sucesso${NC}"
+    # Criar container temporário para verificar arquivos
+    TEMP_CONTAINER=$(docker create $(docker images --format "{{.Repository}}:{{.Tag}}" | grep "maki-ia" | head -1 | awk '{print $1}'))
+    if [ ! -z "$TEMP_CONTAINER" ]; then
+        echo -e "${YELLOW}   Verificando arquivos no container...${NC}"
+        docker cp $TEMP_CONTAINER:/app/templates/agent.html - > /dev/null 2>&1 && \
+            echo -e "${GREEN}   ✅ agent.html encontrado${NC}" || \
+            echo -e "${RED}   ❌ agent.html NÃO encontrado${NC}"
+        docker cp $TEMP_CONTAINER:/app/static/js/agent.js - > /dev/null 2>&1 && \
+            echo -e "${GREEN}   ✅ agent.js encontrado${NC}" || \
+            echo -e "${RED}   ❌ agent.js NÃO encontrado${NC}"
+        docker cp $TEMP_CONTAINER:/app/static/css/agent.css - > /dev/null 2>&1 && \
+            echo -e "${GREEN}   ✅ agent.css encontrado${NC}" || \
+            echo -e "${RED}   ❌ agent.css NÃO encontrado${NC}"
+        docker rm $TEMP_CONTAINER > /dev/null 2>&1
+    fi
+fi
+
 # Iniciar os containers em modo detached (background)
 echo -e "${YELLOW}🚀 Iniciando os containers em background...${NC}"
 $DOCKER_COMPOSE_CMD up -d
@@ -148,6 +169,23 @@ if docker ps | grep -q maki_ia_app; then
             fi
         else
             echo -e "${YELLOW}⚠️  Não foi possível testar a API Gemini${NC}"
+        fi
+        
+        # Testar endpoint de debug de arquivos
+        echo -e "${YELLOW}🔍 Verificando arquivos no container...${NC}"
+        sleep 1
+        if curl -f http://localhost/api/debug/files &> /dev/null; then
+            FILES_STATUS=$(curl -s http://localhost/api/debug/files)
+            if echo "$FILES_STATUS" | grep -q '"agent.html"'; then
+                echo -e "${GREEN}✅ Endpoint de debug funcionando${NC}"
+                # Mostrar status dos arquivos
+                if echo "$FILES_STATUS" | grep -q '"exists":true' | head -3; then
+                    echo -e "${GREEN}   Arquivos essenciais encontrados no container${NC}"
+                else
+                    echo -e "${RED}   ⚠️  Alguns arquivos podem estar faltando!${NC}"
+                    echo "$FILES_STATUS" | grep -E '"exists"|"path"' | head -10
+                fi
+            fi
         fi
     else
         echo -e "${YELLOW}⚠️  A aplicação pode estar iniciando ainda. Verifique os logs com: ${DOCKER_COMPOSE_CMD} logs${NC}"

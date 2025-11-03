@@ -41,6 +41,10 @@ docker-compose.yml
 # DEPLOY.md
 # Mantém DEPLOY_RAPIDO.md e TESTE_AGENT.md se necessário para referência
 
+# IMPORTANTE: NÃO excluir templates e static!
+# templates/
+# static/
+
 # Logs
 *.log
 logs/

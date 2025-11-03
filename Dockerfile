@@ -18,12 +18,20 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
 
-# Copia o restante dos arquivos da aplicação
-COPY . .
+# Copiar arquivos estáticos e templates explicitamente primeiro
+COPY templates/ /app/templates/
+COPY static/ /app/static/
+COPY app.py /app/app.py
+
+# Copiar outros arquivos necessários
+COPY requirements.txt /app/requirements.txt
 
 # Garantir que templates e static existam e tenham permissões corretas
 RUN mkdir -p /app/templates /app/static/css /app/static/js /app/static/images && \
-    chmod -R 755 /app/templates /app/static
+    chmod -R 755 /app/templates /app/static && \
+    ls -la /app/static/js/ && \
+    ls -la /app/static/css/ && \
+    ls -la /app/templates/
 
 # Cria um usuário não-root para segurança
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
