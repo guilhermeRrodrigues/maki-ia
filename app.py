@@ -36,24 +36,98 @@ except Exception as e:
 
 # Configurar modelo Gemini (usando modelo válido com fallback)
 model = None
-try:
-    # Garantir que a API está configurada antes de criar o modelo
-    if not GEMINI_API_KEY:
-        raise ValueError("Chave de API não configurada")
+model_error = None
+
+def initialize_gemini_model():
+    """Inicializa o modelo Gemini com múltiplas tentativas"""
+    global model, model_error
     
-    genai.configure(api_key=GEMINI_API_KEY)  # Reconfigurar para garantir
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    print("✅ Modelo Gemini 1.5 Flash configurado com sucesso")
-except Exception as e:
-    print(f"⚠️  Erro ao configurar gemini-1.5-flash: {str(e)}")
+    if not GEMINI_API_KEY:
+        model_error = "Chave de API não configurada"
+        app.logger.error(model_error)
+        return None
+    
+    # Lista de modelos para tentar (em ordem de preferência)
+    modelos_para_tentar = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro-latest',
+        'gemini-pro',
+        'gemini-1.0-pro',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+    ]
+    
+    # Primeiro, tentar listar modelos disponíveis para ver quais existem
     try:
-        genai.configure(api_key=GEMINI_API_KEY)  # Reconfigurar novamente
-        model = genai.GenerativeModel('gemini-pro')
-        print("✅ Modelo Gemini Pro configurado com sucesso")
-    except Exception as e2:
-        print(f"⚠️  Erro ao configurar gemini-pro: {str(e2)}")
-        print("ℹ️  Usando fallback local para respostas")
-        model = None
+        genai.configure(api_key=GEMINI_API_KEY)
+        modelos_disponiveis = list(genai.list_models())
+        nomes_disponiveis = [m.name for m in modelos_disponiveis]
+        app.logger.info(f"Modelos disponíveis na API: {nomes_disponiveis[:5]}...")
+        
+        # Filtrar apenas modelos que suportam generateContent
+        modelos_suportados = []
+        for m in modelos_disponiveis:
+            if 'generateContent' in m.supported_generation_methods:
+                # Extrair nome do modelo (sem o prefixo models/)
+                nome_modelo = m.name.replace('models/', '')
+                modelos_suportados.append(nome_modelo)
+        
+        if modelos_suportados:
+            app.logger.info(f"Modelos que suportam generateContent: {modelos_suportados[:5]}")
+            # Usar o primeiro modelo suportado que está na nossa lista de preferência
+            for modelo_preferido in modelos_para_tentar:
+                if modelo_preferido in modelos_suportados:
+                    try:
+                        test_model = genai.GenerativeModel(modelo_preferido)
+                        test_response = test_model.generate_content("OK")
+                        if test_response and test_response.text:
+                            model = test_model
+                            app.logger.info(f"✅ Modelo {modelo_preferido} configurado e testado com sucesso")
+                            print(f"✅ Modelo {modelo_preferido} configurado com sucesso")
+                            return model
+                    except Exception as e:
+                        app.logger.warning(f"Erro ao testar {modelo_preferido}: {str(e)}")
+                        continue
+            
+            # Se nenhum dos preferidos funcionou, tentar o primeiro disponível
+            if model is None and modelos_suportados:
+                try:
+                    primeiro_modelo = modelos_suportados[0]
+                    test_model = genai.GenerativeModel(primeiro_modelo)
+                    test_response = test_model.generate_content("OK")
+                    if test_response and test_response.text:
+                        model = test_model
+                        app.logger.info(f"✅ Usando modelo disponível: {primeiro_modelo}")
+                        print(f"✅ Modelo {primeiro_modelo} configurado com sucesso")
+                        return model
+                except Exception as e:
+                    app.logger.error(f"Erro ao usar primeiro modelo disponível: {str(e)}")
+        
+    except Exception as e:
+        app.logger.warning(f"Erro ao listar modelos: {str(e)}")
+    
+    # Se não conseguiu listar, tentar modelos conhecidos diretamente
+    for nome_modelo in modelos_para_tentar:
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+            test_model = genai.GenerativeModel(nome_modelo)
+            test_response = test_model.generate_content("Teste")
+            if test_response and test_response.text:
+                model = test_model
+                app.logger.info(f"✅ Modelo {nome_modelo} configurado e testado com sucesso")
+                print(f"✅ Modelo {nome_modelo} configurado com sucesso")
+                return model
+        except Exception as e:
+            continue
+    
+    # Se chegou aqui, nenhum modelo funcionou
+    model_error = "Nenhum modelo Gemini disponível - usando fallback local"
+    app.logger.warning(model_error)
+    print("ℹ️  Usando fallback local para respostas")
+    return None
+
+# Tentar inicializar o modelo
+initialize_gemini_model()
 
 def get_maki_response(user_message):
     """Obter resposta da MAKI IA usando Google Gemini"""
@@ -61,13 +135,41 @@ def get_maki_response(user_message):
     try:
         genai.configure(api_key=GEMINI_API_KEY)
     except Exception as e:
-        app.logger.error(f"Erro ao configurar API key: {str(e)}")
+        error_msg = f"Erro ao configurar API key: {str(e)}"
+        app.logger.error(error_msg)
         return get_local_maki_response(user_message)
     
+    # Se modelo não existe, tentar inicializar novamente
     if model is None:
-        # Tentar criar modelo novamente se não existir
+        app.logger.info("Modelo não existe, tentando inicializar...")
+        initialize_gemini_model()
+        
+        if model is None:
+            app.logger.warning(f"Não foi possível inicializar modelo. Erro: {model_error}")
+            return get_local_maki_response(user_message)
+    
+    # Tentar criar modelo temporário se ainda não funcionar
+    if model is None:
         try:
-            temp_model = genai.GenerativeModel('gemini-1.5-flash')
+            app.logger.info("Tentando criar modelo temporário...")
+            # Tentar diferentes modelos
+            modelos_para_tentar = ['gemini-1.5-flash-latest', 'gemini-pro', 'gemini-1.0-pro']
+            temp_model = None
+            for nome_modelo in modelos_para_tentar:
+                try:
+                    temp_model = genai.GenerativeModel(nome_modelo)
+                    break
+                except:
+                    continue
+            
+            if temp_model is None:
+                raise ValueError("Nenhum modelo disponível")
+            
+            # Testar primeiro
+            test_response = temp_model.generate_content("OK")
+            if not test_response or not test_response.text:
+                raise ValueError("Modelo não retornou resposta válida")
+            
             prompt = f"""Você é MAKI IA, IA educacional desenvolvida por João Guilherme no SESI.
 
 IDENTIDADE: MAKI IA | SESI | "Tecnologia que entende você" | Foco: educação e tecnologia acessível
@@ -86,9 +188,14 @@ Pergunta: {user_message}
 
 Responda como MAKI IA:"""
             response = temp_model.generate_content(prompt)
-            return response.text.strip()
+            if response and response.text:
+                app.logger.info("Modelo temporário funcionou!")
+                return response.text.strip()
+            else:
+                raise ValueError("Resposta vazia do modelo temporário")
         except Exception as e:
-            app.logger.warning(f"Erro ao criar modelo temporário: {str(e)}")
+            error_msg = f"Erro ao criar modelo temporário: {str(e)}"
+            app.logger.error(error_msg)
             return get_local_maki_response(user_message)
     
     try:
@@ -111,19 +218,48 @@ Pergunta: {user_message}
 
 Responda como MAKI IA:"""
         
+        app.logger.info(f"Enviando mensagem para Gemini: {user_message[:50]}...")
         response = model.generate_content(prompt)
-        return response.text.strip()
+        
+        if response and response.text:
+            app.logger.info("✅ Resposta recebida do Gemini")
+            return response.text.strip()
+        else:
+            raise ValueError("Resposta vazia do Gemini")
+            
     except Exception as e:
-        app.logger.error(f"Erro na API Gemini: {str(e)}")
+        error_msg = f"Erro na API Gemini (primeira tentativa): {str(e)}"
+        app.logger.error(error_msg)
+        app.logger.error(f"Tipo de erro: {type(e).__name__}")
+        
         # Tentar novamente com configuração diferente
         try:
-            # Garantir que a API está configurada antes de tentar novamente
+            app.logger.info("Tentando novamente com novo modelo...")
             genai.configure(api_key=GEMINI_API_KEY)
-            model_retry = genai.GenerativeModel('gemini-1.5-flash')
+            # Tentar diferentes modelos
+            modelos_para_tentar = ['gemini-1.5-flash-latest', 'gemini-pro', 'gemini-1.0-pro']
+            model_retry = None
+            for nome_modelo in modelos_para_tentar:
+                try:
+                    model_retry = genai.GenerativeModel(nome_modelo)
+                    break
+                except:
+                    continue
+            
+            if model_retry is None:
+                raise ValueError("Nenhum modelo disponível para retry")
             response = model_retry.generate_content(prompt)
-            return response.text.strip()
+            
+            if response and response.text:
+                app.logger.info("✅ Resposta recebida na segunda tentativa")
+                return response.text.strip()
+            else:
+                raise ValueError("Resposta vazia na segunda tentativa")
+                
         except Exception as e2:
-            app.logger.error(f"Segunda tentativa falhou: {str(e2)}")
+            error_msg = f"Segunda tentativa falhou: {str(e2)}"
+            app.logger.error(error_msg)
+            app.logger.error(f"Tipo de erro: {type(e2).__name__}")
             # Fallback para respostas inteligentes locais
             return get_local_maki_response(user_message)
 
@@ -248,6 +384,7 @@ def api_info():
 def list_models():
     """Endpoint para listar modelos disponíveis"""
     try:
+        genai.configure(api_key=GEMINI_API_KEY)
         models = list(genai.list_models())
         model_names = [model.name for model in models]
         return jsonify({
@@ -257,7 +394,8 @@ def list_models():
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': f'Erro ao listar modelos: {str(e)}'
+            'message': f'Erro ao listar modelos: {str(e)}',
+            'error_type': type(e).__name__
         })
 
 @app.route('/api/test-gemini')
@@ -266,30 +404,63 @@ def test_gemini():
     try:
         # Garantir que a API está configurada
         genai.configure(api_key=GEMINI_API_KEY)
+        app.logger.info("Testando API Gemini...")
         
         # Tentar usar o modelo existente ou criar um novo
         test_model = model
         if test_model is None:
-            test_model = genai.GenerativeModel('gemini-1.5-flash')
+            app.logger.info("Modelo não existe, tentando criar novo...")
+            # Tentar inicializar novamente
+            initialize_gemini_model()
+            test_model = model
+            
+        if test_model is None:
+            # Tentar criar modelo temporário
+            app.logger.info("Criando modelo temporário para teste...")
+            modelos_para_tentar = ['gemini-1.5-flash-latest', 'gemini-pro', 'gemini-1.0-pro']
+            for nome_modelo in modelos_para_tentar:
+                try:
+                    test_model = genai.GenerativeModel(nome_modelo)
+                    break
+                except:
+                    continue
+            
+            if test_model is None:
+                raise ValueError("Nenhum modelo disponível para teste")
         
         # Teste simples
         test_prompt = "Responda apenas: 'API Gemini funcionando!'"
+        app.logger.info(f"Enviando prompt de teste: {test_prompt}")
         response = test_model.generate_content(test_prompt)
-        return jsonify({
-            'status': 'success',
-            'message': 'API Gemini funcionando!',
-            'response': response.text.strip(),
-            'api_key_configured': bool(GEMINI_API_KEY),
-            'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None
-        })
+        
+        if response and response.text:
+            app.logger.info("✅ Teste do Gemini bem-sucedido")
+            return jsonify({
+                'status': 'success',
+                'message': 'API Gemini funcionando!',
+                'response': response.text.strip(),
+                'api_key_configured': bool(GEMINI_API_KEY),
+                'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None,
+                'model_configured': model is not None,
+                'model_error': model_error if model is None else None
+            })
+        else:
+            raise ValueError("Resposta vazia do Gemini")
+            
     except Exception as e:
-        return jsonify({
+        error_details = {
             'status': 'error',
             'message': f'Erro na API Gemini: {str(e)}',
             'error_type': type(e).__name__,
             'api_key_configured': bool(GEMINI_API_KEY),
-            'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None
-        })
+            'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None,
+            'model_configured': model is not None,
+            'model_error': model_error
+        }
+        app.logger.error(f"Erro no teste Gemini: {error_details}")
+        import traceback
+        error_details['traceback'] = traceback.format_exc()
+        return jsonify(error_details)
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
@@ -315,14 +486,20 @@ def api_chat():
             }), 400
         
         # Obter resposta da MAKI IA
+        app.logger.info(f"Recebida mensagem do usuário: {user_message[:50]}...")
         maki_response = get_maki_response(user_message)
+        app.logger.info(f"Resposta gerada: {maki_response[:50]}...")
         
         return jsonify({
             'response': maki_response,
-            'status': 'success'
+            'status': 'success',
+            'using_gemini': model is not None
         })
         
     except Exception as e:
+        app.logger.error(f"Erro no endpoint /api/chat: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return jsonify({
             'error': f'Erro interno: {str(e)}',
             'status': 'error'
@@ -335,7 +512,10 @@ def api_status():
         'status': 'online',
         'versao': '1.0.0',
         'mensagem': 'MAKI IA está funcionando perfeitamente!',
-        'ai_enabled': True
+        'ai_enabled': model is not None,
+        'gemini_configured': model is not None,
+        'gemini_error': model_error if model is None else None,
+        'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None
     })
 
 @app.route('/api/debug/files')
@@ -406,6 +586,37 @@ def debug_files():
             'traceback': traceback.format_exc()
         }), 500
 
+@app.route('/api/debug/gemini')
+def debug_gemini():
+    """Endpoint de diagnóstico específico para Gemini"""
+    try:
+        debug_info = {
+            'api_key_configured': bool(GEMINI_API_KEY),
+            'api_key_last_chars': GEMINI_API_KEY[-4:] if GEMINI_API_KEY else None,
+            'model_initialized': model is not None,
+            'model_error': model_error,
+            'model_type': type(model).__name__ if model else None
+        }
+        
+        # Tentar testar a conexão
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+            test_model = genai.GenerativeModel('gemini-1.5-flash')
+            test_response = test_model.generate_content("OK")
+            debug_info['connection_test'] = 'success' if test_response and test_response.text else 'empty_response'
+        except Exception as e:
+            debug_info['connection_test'] = 'failed'
+            debug_info['connection_error'] = str(e)
+            debug_info['connection_error_type'] = type(e).__name__
+        
+        return jsonify(debug_info)
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 if __name__ == '__main__':
     # Criar diretórios necessários (usando Path para compatibilidade)
     (BASE_DIR / 'templates').mkdir(exist_ok=True)
@@ -439,8 +650,21 @@ if __name__ == '__main__':
     print(f"📁 Diretório base: {BASE_DIR}")
     print(f"📝 Modo debug: {debug_mode}")
     print(f"🔑 Chave de API Gemini: {'Configurada' if GEMINI_API_KEY else 'NÃO CONFIGURADA'} (últimos 4 dígitos: {GEMINI_API_KEY[-4:] if GEMINI_API_KEY else 'N/A'})")
-    print(f"🤖 Modelo Gemini: {'Configurado' if model else 'Não disponível (usando fallback local)'}")
+    print(f"🤖 Modelo Gemini: {'✅ Configurado' if model else '❌ Não disponível (usando fallback local)'}")
+    if model is None and model_error:
+        print(f"   ⚠️  Erro: {model_error}")
     print(f"📂 Templates: {BASE_DIR / 'templates'}")
     print(f"📂 Static: {BASE_DIR / 'static'}")
+    
+    # Log no sistema de logs também
+    app.logger.info(f"🚀 Iniciando MAKI IA na porta {port}")
+    app.logger.info(f"🤖 Modelo Gemini: {'✅ Configurado' if model else '❌ Não disponível'}")
+    if model is None:
+        app.logger.warning(f"⚠️  Modelo Gemini não disponível: {model_error}")
+        print("")
+        print("⚠️  ATENÇÃO: IA está usando modo local (fallback)")
+        print("   Para diagnosticar, acesse: http://localhost/api/test-gemini")
+        print("   Ou: http://localhost/api/debug/gemini")
+        print("   Verifique os logs para mais detalhes sobre o erro")
     
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
