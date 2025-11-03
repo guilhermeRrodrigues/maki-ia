@@ -18,24 +18,40 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
 
-# Copiar arquivos estáticos e templates explicitamente primeiro
-COPY templates/ /app/templates/
-COPY static/ /app/static/
-COPY app.py /app/app.py
+# Copiar TODOS os arquivos primeiro (como root)
+COPY . .
 
-# Copiar outros arquivos necessários
-COPY requirements.txt /app/requirements.txt
+# Verificar se os arquivos foram copiados corretamente
+RUN echo "=== Verificando arquivos copiados ===" && \
+    ls -la /app/ && \
+    echo "=== Templates ===" && \
+    ls -la /app/templates/ && \
+    echo "=== Static ===" && \
+    ls -la /app/static/ && \
+    echo "=== Static/JS ===" && \
+    ls -la /app/static/js/ 2>/dev/null || echo "Diretório js não existe" && \
+    echo "=== Static/CSS ===" && \
+    ls -la /app/static/css/ 2>/dev/null || echo "Diretório css não existe" && \
+    echo "=== Verificando arquivos específicos ===" && \
+    test -f /app/templates/agent.html && echo "✅ agent.html existe" || echo "❌ agent.html NÃO existe" && \
+    test -f /app/static/js/agent.js && echo "✅ agent.js existe" || echo "❌ agent.js NÃO existe" && \
+    test -f /app/static/css/agent.css && echo "✅ agent.css existe" || echo "❌ agent.css NÃO existe"
 
-# Garantir que templates e static existam e tenham permissões corretas
-RUN mkdir -p /app/templates /app/static/css /app/static/js /app/static/images && \
-    chmod -R 755 /app/templates /app/static && \
-    ls -la /app/static/js/ && \
-    ls -la /app/static/css/ && \
-    ls -la /app/templates/
+# Garantir permissões corretas
+RUN chmod -R 755 /app/templates /app/static
 
 # Cria um usuário não-root para segurança
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Verificar permissões antes de mudar de usuário
+RUN ls -la /app/ | head -10
+
 USER appuser
+
+# Verificar novamente após mudar de usuário
+RUN test -f /app/templates/agent.html && echo "✅ agent.html acessível" || echo "❌ agent.html NÃO acessível" && \
+    test -f /app/static/js/agent.js && echo "✅ agent.js acessível" || echo "❌ agent.js NÃO acessível" && \
+    test -f /app/static/css/agent.css && echo "✅ agent.css acessível" || echo "❌ agent.css NÃO acessível"
 
 # Expõe a porta 5000
 EXPOSE 5000

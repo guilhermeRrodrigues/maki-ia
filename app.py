@@ -18,6 +18,12 @@ app = Flask(
 # Configurações
 app.config['SECRET_KEY'] = 'maki-ia-secret-key-2024'
 
+# Garantir que arquivos estáticos sejam servidos em produção
+# Adicionar log na inicialização para debug
+import logging
+logging.basicConfig(level=logging.INFO)
+app.logger.setLevel(logging.INFO)
+
 # Configurar API do Google Gemini
 GEMINI_API_KEY = 'AIzaSyAw6TehD7zj-Hi3hPkpR-R6Rt7v9ILGK8A'
 
@@ -339,18 +345,34 @@ def debug_files():
         # Verificar tamanhos dos arquivos também
         agent_js_path = BASE_DIR / 'static' / 'js' / 'agent.js'
         agent_css_path = BASE_DIR / 'static' / 'css' / 'agent.css'
+        agent_html_path = BASE_DIR / 'templates' / 'agent.html'
+        
+        # Listar conteúdo dos diretórios
+        static_js_files = []
+        static_css_files = []
+        template_files = []
+        
+        if (BASE_DIR / 'static' / 'js').exists():
+            static_js_files = [f.name for f in (BASE_DIR / 'static' / 'js').iterdir() if f.is_file()]
+        if (BASE_DIR / 'static' / 'css').exists():
+            static_css_files = [f.name for f in (BASE_DIR / 'static' / 'css').iterdir() if f.is_file()]
+        if (BASE_DIR / 'templates').exists():
+            template_files = [f.name for f in (BASE_DIR / 'templates').iterdir() if f.is_file()]
         
         files_status = {
             'base_dir': str(BASE_DIR),
+            'current_user': os.getenv('USER', 'unknown'),
             'templates': {
                 'agent.html': {
-                    'exists': (BASE_DIR / 'templates' / 'agent.html').exists(),
-                    'path': str(BASE_DIR / 'templates' / 'agent.html')
+                    'exists': agent_html_path.exists(),
+                    'path': str(agent_html_path),
+                    'size': agent_html_path.stat().st_size if agent_html_path.exists() else 0
                 },
                 'home.html': {
                     'exists': (BASE_DIR / 'templates' / 'home.html').exists(),
                     'path': str(BASE_DIR / 'templates' / 'home.html')
                 },
+                'all_files': template_files
             },
             'static': {
                 'js/agent.js': {
@@ -363,11 +385,17 @@ def debug_files():
                     'path': str(agent_css_path),
                     'size': agent_css_path.stat().st_size if agent_css_path.exists() else 0
                 },
+                'js_files': static_js_files,
+                'css_files': static_css_files
             },
             'flask_config': {
                 'template_folder': app.template_folder,
                 'static_folder': app.static_folder,
                 'static_url_path': app.static_url_path
+            },
+            'permissions': {
+                'static_readable': os.access(BASE_DIR / 'static', os.R_OK) if (BASE_DIR / 'static').exists() else False,
+                'templates_readable': os.access(BASE_DIR / 'templates', os.R_OK) if (BASE_DIR / 'templates').exists() else False
             }
         }
         return jsonify(files_status)
